@@ -1,6 +1,8 @@
 import modelBundleJson from "../../models/cloudflare_portable_model.json" with { type: "json" };
 import { ROUTE_POINTS } from "../config/forecast-points.js";
 import { fetchForecasts } from "../forecast/open-meteo.js";
+import { runMultiModelPredictions } from "../forecast/multi-model.js";
+import { assessWithFallback } from "../gemini/client.js";
 import { buildFeatures, validateFeatures } from "../ml/build-features.js";
 import { predictRisk, type ModelBundle } from "../ml/inference.js";
 import type { Direction, ServiceInput, ShipType } from "../types.js";
@@ -9,6 +11,7 @@ const MODEL_BUNDLE: ModelBundle = modelBundleJson;
 const MAX_BODY_BYTES = 16 * 1024;
 const SHIP_TYPES = new Set<ShipType>(["jet", "large"]);
 const DIRECTIONS = new Set<Direction>(["from_oshima", "to_oshima"]);
+interface WorkerEnv { GEMINI_API_KEY?: string }
 
 class RequestError extends Error {
   constructor(message: string, readonly status = 400, readonly code = "INVALID_REQUEST") {
@@ -76,16 +79,24 @@ function parseService(value: unknown): ServiceInput {
   };
 }
 
-export async function handleRequest(request: Request, fetchFn: typeof fetch = fetch): Promise<Response> {
+export async function handleRequest(request: Request, fetchFn: typeof fetch = fetch, env: WorkerEnv = {}): Promise<Response> {
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/health") {
     return json({ status: "ok", modelVersion: MODEL_BUNDLE.schema_version, featuresVersion: "v1-127" });
   }
-  if (url.pathname !== "/api/predict") return json({ error: { code: "NOT_FOUND", message: "Not found" }, requestId }, 404);
+  if (!["/api/predict", "/api/assess"].includes(url.pathname)) return json({ error: { code: "NOT_FOUND", message: "Not found" }, requestId }, 404);
   if (request.method !== "POST") return json({ error: { code: "METHOD_NOT_ALLOWED", message: "Use POST" }, requestId }, 405, { Allow: "POST" });
   try {
     const service = parseService(await readJsonWithLimit(request));
+    if (url.pathname === "/api/assess") {
+      const multiModel = await runMultiModelPredictions(service, MODEL_BUNDLE, fetchFn);
+      const assessment = env.GEMINI_API_KEY
+        ? await assessWithFallback({ service, comparison: multiModel.comparison, failures: multiModel.failures }, multiModel, env.GEMINI_API_KEY, fetchFn)
+        : { ml: multiModel, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: "GEMINI_API_KEY is not configured" };
+      console.log(JSON.stringify({ event: "assessment_completed", requestId, serviceId: service.serviceId, aiStatus: assessment.aiStatus, modelCount: multiModel.predictions.length }));
+      return json({ serviceId: service.serviceId, ...assessment, requestId });
+    }
     const forecasts = await fetchForecasts(fetchFn);
     const built = buildFeatures(service, forecasts);
     validateFeatures(built.vector);
@@ -113,7 +124,7 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
 }
 
 export default {
-  fetch(request: Request): Promise<Response> {
-    return handleRequest(request);
+  fetch(request: Request, env: Env): Promise<Response> {
+    return handleRequest(request, fetch, env);
   }
 } satisfies ExportedHandler<Env>;

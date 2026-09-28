@@ -1,32 +1,66 @@
 export const GEMINI_MODELS = { summary: "gemini-3.5-flash-lite", final: "gemini-3.8-flash" } as const;
-export const PROMPT_VERSION = "final-v1";
+export const PROMPT_VERSION = "assessment-v2";
+
+export interface ForecastSummary { risk_level: "low" | "medium" | "high"; model_agreement: "high" | "medium" | "low"; key_signals: string[]; missing_data: string[]; numerical_summary: string }
 export interface FinalAssessment { operation_probability: number; confidence: number; assessment: string; positive_factors: string[]; negative_factors: string[]; confidence_reasons: string[]; port_prediction: "元町" | "岡田" | "不明"; summary: string }
 
-const schema = { type: "OBJECT", properties: { operation_probability: { type: "INTEGER", minimum: 0, maximum: 100 }, confidence: { type: "INTEGER", minimum: 0, maximum: 100 }, assessment: { type: "STRING" }, positive_factors: { type: "ARRAY", items: { type: "STRING" } }, negative_factors: { type: "ARRAY", items: { type: "STRING" } }, confidence_reasons: { type: "ARRAY", items: { type: "STRING" } }, port_prediction: { type: "STRING", enum: ["元町", "岡田", "不明"] }, summary: { type: "STRING" } }, required: ["operation_probability", "confidence", "assessment", "positive_factors", "negative_factors", "confidence_reasons", "port_prediction", "summary"] };
+const summarySchema = { type: "OBJECT", properties: { risk_level: { type: "STRING", enum: ["low", "medium", "high"] }, model_agreement: { type: "STRING", enum: ["high", "medium", "low"] }, key_signals: { type: "ARRAY", items: { type: "STRING" } }, missing_data: { type: "ARRAY", items: { type: "STRING" } }, numerical_summary: { type: "STRING" } }, required: ["risk_level", "model_agreement", "key_signals", "missing_data", "numerical_summary"] };
+const finalSchema = { type: "OBJECT", properties: { operation_probability: { type: "INTEGER", minimum: 0, maximum: 100 }, confidence: { type: "INTEGER", minimum: 0, maximum: 100 }, assessment: { type: "STRING" }, positive_factors: { type: "ARRAY", items: { type: "STRING" } }, negative_factors: { type: "ARRAY", items: { type: "STRING" } }, confidence_reasons: { type: "ARRAY", items: { type: "STRING" } }, port_prediction: { type: "STRING", enum: ["元町", "岡田", "不明"] }, summary: { type: "STRING" } }, required: ["operation_probability", "confidence", "assessment", "positive_factors", "negative_factors", "confidence_reasons", "port_prediction", "summary"] };
 
-export function validateAssessment(x: unknown): FinalAssessment {
-  if (!x || typeof x !== "object" || Array.isArray(x)) throw new Error("Gemini assessment is not an object");
-  const v = x as Record<string, unknown>;
-  for (const key of ["operation_probability", "confidence"]) if (!Number.isInteger(v[key]) || (v[key] as number) < 0 || (v[key] as number) > 100) throw new Error(`Invalid ${key}`);
-  for (const key of ["assessment", "summary"]) if (typeof v[key] !== "string") throw new Error(`Invalid ${key}`);
-  for (const key of ["positive_factors", "negative_factors", "confidence_reasons"]) if (!Array.isArray(v[key]) || !(v[key] as unknown[]).every((i) => typeof i === "string")) throw new Error(`Invalid ${key}`);
-  if (!["元町", "岡田", "不明"].includes(String(v.port_prediction))) throw new Error("Invalid port_prediction");
-  return { operation_probability: v.operation_probability as number, confidence: v.confidence as number, assessment: v.assessment as string, positive_factors: v.positive_factors as string[], negative_factors: v.negative_factors as string[], confidence_reasons: v.confidence_reasons as string[], port_prediction: v.port_prediction as FinalAssessment["port_prediction"], summary: v.summary as string };
+function stringArray(value: unknown, key: string): string[] {
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) throw new Error(`Invalid ${key}`);
+  return value;
 }
 
-export async function generateFinalAssessment(input: unknown, apiKey: string, fetchFn: typeof fetch = fetch): Promise<FinalAssessment> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELS.final}:generateContent`;
-  const init: RequestInit = { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは伊豆大島航路の予測補助です。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げてください。入力:\n${JSON.stringify(input)}` }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema } }) };
+export function validateForecastSummary(value: unknown): ForecastSummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Gemini summary is not an object");
+  const v = value as Record<string, unknown>;
+  if (!["low", "medium", "high"].includes(String(v.risk_level))) throw new Error("Invalid risk_level");
+  if (!["high", "medium", "low"].includes(String(v.model_agreement))) throw new Error("Invalid model_agreement");
+  if (typeof v.numerical_summary !== "string") throw new Error("Invalid numerical_summary");
+  return { risk_level: v.risk_level as ForecastSummary["risk_level"], model_agreement: v.model_agreement as ForecastSummary["model_agreement"], key_signals: stringArray(v.key_signals, "key_signals"), missing_data: stringArray(v.missing_data, "missing_data"), numerical_summary: v.numerical_summary };
+}
+
+export function validateAssessment(value: unknown): FinalAssessment {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Gemini assessment is not an object");
+  const v = value as Record<string, unknown>;
+  for (const key of ["operation_probability", "confidence"]) if (!Number.isInteger(v[key]) || (v[key] as number) < 0 || (v[key] as number) > 100) throw new Error(`Invalid ${key}`);
+  for (const key of ["assessment", "summary"]) if (typeof v[key] !== "string") throw new Error(`Invalid ${key}`);
+  if (!["元町", "岡田", "不明"].includes(String(v.port_prediction))) throw new Error("Invalid port_prediction");
+  return { operation_probability: v.operation_probability as number, confidence: v.confidence as number, assessment: v.assessment as string, positive_factors: stringArray(v.positive_factors, "positive_factors"), negative_factors: stringArray(v.negative_factors, "negative_factors"), confidence_reasons: stringArray(v.confidence_reasons, "confidence_reasons"), port_prediction: v.port_prediction as FinalAssessment["port_prediction"], summary: v.summary as string };
+}
+
+async function generateStructured<T>(model: string, prompt: string, schema: object, validate: (value: unknown) => T, apiKey: string, fetchFn: typeof fetch): Promise<T> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const init: RequestInit = { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.1 } }) };
   let response = await fetchFn(url, init);
-  if (response.status === 429 || response.status >= 500) { await new Promise((resolve) => setTimeout(resolve, 1000)); response = await fetchFn(url, init); }
-  if (!response.ok) throw new Error(`Gemini HTTP ${response.status}`);
+  if (response.status === 429 || response.status >= 500) response = await fetchFn(url, init);
+  if (!response.ok) throw new Error(`Gemini ${model} HTTP ${response.status}`);
   const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Gemini returned no structured output");
-  return validateAssessment(JSON.parse(text));
+  if (!text) throw new Error(`Gemini ${model} returned no structured output`);
+  try { return validate(JSON.parse(text)); }
+  catch (error) { throw new Error(`Gemini ${model} returned invalid structured output: ${error instanceof Error ? error.message : String(error)}`); }
+}
+
+export function generateForecastSummary(input: unknown, apiKey: string, fetchFn: typeof fetch = fetch): Promise<ForecastSummary> {
+  return generateStructured(GEMINI_MODELS.summary, `伊豆大島航路の予報比較を整理してください。入力中の数値だけを使い、欠損モデルを明記し、就航可否を最終判断しないでください。\n入力:\n${JSON.stringify(input)}`, summarySchema, validateForecastSummary, apiKey, fetchFn);
+}
+
+export function generateFinalAssessment(input: unknown, summary: ForecastSummary, apiKey: string, fetchFn: typeof fetch = fetch): Promise<FinalAssessment> {
+  return generateStructured(GEMINI_MODELS.final, `伊豆大島航路の予測補助として最終評価してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summary)}\n元入力:\n${JSON.stringify(input)}`, finalSchema, validateAssessment, apiKey, fetchFn);
 }
 
 export async function assessWithFallback(input: unknown, ml: unknown, apiKey: string, fetchFn: typeof fetch = fetch) {
-  try { return { ml, ai: await generateFinalAssessment(input, apiKey, fetchFn), aiStatus: "generated" as const, geminiModel: GEMINI_MODELS.final, promptVersion: PROMPT_VERSION }; }
-  catch (error) { return { ml, ai: null, aiStatus: "unavailable" as const, error: error instanceof Error ? error.message : String(error), geminiModel: GEMINI_MODELS.final, promptVersion: PROMPT_VERSION }; }
+  try {
+    const forecastSummary = await generateForecastSummary(input, apiKey, fetchFn);
+    try {
+      const ai = await generateFinalAssessment(input, forecastSummary, apiKey, fetchFn);
+      return { ml, forecastSummary, ai, aiStatus: "generated" as const, geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
+    } catch (error) {
+      return { ml, forecastSummary, ai: null, aiStatus: "unavailable" as const, error: error instanceof Error ? error.message : String(error), geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
+    }
+  } catch (error) {
+    return { ml, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: error instanceof Error ? error.message : String(error), geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
+  }
 }
