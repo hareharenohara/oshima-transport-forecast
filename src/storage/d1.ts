@@ -83,11 +83,14 @@ interface PredictionViewRow {
   summary: string | null;
   ai_status: string | null;
   prediction_created_at: string | null;
+  ml_operation_probability: number | null;
 }
 
 const LATEST_PREDICTION_SELECT = `SELECT s.id AS service_id, s.service_date, s.service_number, s.ship_type,
   s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.operation_probability, a.confidence,
-  a.assessment, a.port_prediction, a.summary, a.ai_status, a.created_at AS prediction_created_at
+  a.assessment, a.port_prediction, a.summary, a.ai_status, a.created_at AS prediction_created_at,
+  (SELECT AVG(m.operation_probability) FROM ml_predictions m
+    WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = s.id) AS ml_operation_probability
   FROM services s LEFT JOIN ai_predictions a ON a.id = (
     SELECT ap.id FROM ai_predictions ap WHERE ap.service_id = s.id ORDER BY ap.created_at DESC LIMIT 1
   )`;

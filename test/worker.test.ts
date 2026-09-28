@@ -10,6 +10,14 @@ test("worker health reports model versions", async () => {
   assert.deepEqual(await response.json(), { status: "ok", modelVersion: "v1-127", featuresVersion: "v1-127" });
 });
 
+test("worker serves the mobile forecast UI with security headers", async () => {
+  const response = await handleRequest(new Request("https://example.test/"));
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+  assert.match(response.headers.get("content-security-policy") ?? "", /script-src 'self'/);
+  assert.match(await response.text(), /島ゆき予報/);
+});
+
 test("worker rejects invalid service input before external API calls", async () => {
   let called = false;
   const response = await handleRequest(new Request("https://example.test/api/predict", {
