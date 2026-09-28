@@ -7,4 +7,5 @@ data/
 artifacts/model_training_v1_127/*.pkl
 artifacts/model_training_v1_127/test_predictions.csv
 artifacts/model_training_v1_127/threshold_analysis.csv
+.wrangler/
 

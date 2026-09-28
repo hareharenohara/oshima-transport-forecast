@@ -20,6 +20,15 @@ pnpm test
 pnpm predict -- --departure 2026-09-29T08:00:00+09:00 --arrival 2026-09-29T09:45:00+09:00 --terminal 東京 --ship jet --voyage 1100 --direction to_oshima
 ```
 
+Worker APIのローカル起動:
+
+```powershell
+pnpm worker:types
+pnpm worker:dev -- --env preview
+```
+
+別のターミナルから `GET http://127.0.0.1:8787/health` または `POST http://127.0.0.1:8787/api/predict` を呼び出します。リクエスト仕様は [Phase 1 prediction API](docs/api.md) にあります。Cloudflareへ接続せずに構成とバンドルを検証する場合は `pnpm worker:check` を実行します。
+
 監査済み127特徴量モデルは提供時系列データから再構築済みです。再学習方法と評価値は [Phase 1 status](docs/phase-1-status.md) を参照してください。
 
 ## モデル再学習
