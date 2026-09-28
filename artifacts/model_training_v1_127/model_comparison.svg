@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="174">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20" y="30" font-family="sans-serif" font-size="20" font-weight="bold">Common-model test PR-AUC</text>
+<text x="20" y="78" font-family="sans-serif" font-size="13">gbdt_stumps</text>
+<rect x="250" y="60" width="600.0" height="24" fill="#2563eb"/>
+<text x="860.0" y="78" font-family="sans-serif" font-size="13">0.721 PR-AUC</text>
+<text x="20" y="120" font-family="sans-serif" font-size="13">logistic</text>
+<rect x="250" y="102" width="581.0" height="24" fill="#2563eb"/>
+<text x="841.0" y="120" font-family="sans-serif" font-size="13">0.698 PR-AUC</text>
+</svg>

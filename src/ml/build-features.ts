@@ -58,10 +58,11 @@ export function buildFeatures(service: ServiceInput, forecasts: NormalizedForeca
   const departure = Date.parse(service.scheduledDepartureJst);
   const arrival = Date.parse(service.scheduledArrivalJst);
   if (!Number.isFinite(departure) || !Number.isFinite(arrival) || arrival <= departure) throw new Error("Invalid scheduled JST departure/arrival");
-  const start6 = floorHour(departure) - 6 * HOUR;
-  const end = ceilHour(arrival);
-  const weather = inWindow(forecasts.weather, routePointIds, start6, end);
-  const marine = inWindow(forecasts.marine, routePointIds, start6, end);
+  const start6 = departure - 6 * HOUR;
+  const dataStart = floorHour(departure) - 6 * HOUR;
+  const end = arrival;
+  const weather = inWindow(forecasts.weather, routePointIds, dataStart, end);
+  const marine = inWindow(forecasts.marine, routePointIds, dataStart, end);
   const journeyStart = floorHour(departure);
   const journeyWeather = inWindow(weather, routePointIds, journeyStart, end);
   const journeyMarine = inWindow(marine, routePointIds, journeyStart, end);
@@ -73,8 +74,8 @@ export function buildFeatures(service: ServiceInput, forecasts: NormalizedForeca
   directions(values(journeyWeather, "wind_direction_10m"), "journey_wind_direction_10m", numeric);
   for (const variable of ["wave_direction", "wind_wave_direction", "swell_wave_direction"]) directions(values(journeyMarine, variable), `journey_${variable}`, numeric);
   for (const [prefix, hours] of [["pre3h", 3], ["pre6h", 6]] as const) {
-    const start = floorHour(departure) - hours * HOUR;
-    const finish = ceilHour(departure);
+    const start = departure - hours * HOUR;
+    const finish = departure;
     for (const variable of ["wind_speed_10m", "wind_gusts_10m"]) stats(values(inWindow(weather, routePointIds, start, finish), variable), `${prefix}_${variable}`, numeric);
     for (const variable of ["wave_height", "swell_wave_height"]) stats(values(inWindow(marine, routePointIds, start, finish), variable), `${prefix}_${variable}`, numeric);
   }

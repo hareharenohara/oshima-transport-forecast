@@ -11,10 +11,10 @@
 
 On 2026-09-28 JST, a live API run successfully retrieved all 11 locations, generated 127 finite features for a Tokyo–Oshima sample service, and reached the model compatibility gate. The forecast request is batched into one weather and one marine request, with one bounded retry for HTTP 429/5xx.
 
-## Blocking artifact mismatch
+## Audited model reconstruction
 
-The provided `cloudflare_portable_model.json` has 131 inputs. It contains the four removed `*_circular_mean_deg` features and voyage levels such as `1100.0`. The provided audited specification has 127 inputs and voyage levels such as `1100`.
+The supplied model bundle contained only the older 131-input model. The audited 127-input model was reconstructed from the supplied hourly training sources by excluding forecast hours after departure/estimated arrival, removing the four audited `*_circular_mean_deg` values, and normalizing voyage numbers to integer strings.
 
-The system therefore returns `prediction_unavailable` instead of adapting, dropping, filling, or renaming features. To complete Phase 1, replace the model JSON and inference helper with the audited, retrained 127-feature artifacts whose ordered `feature_names` exactly match `docs/model/model_input_specification_127.csv`.
+The reconstructed final-test metrics match the audit report: threshold 0.03, recall 92.3%, precision 32.3%, false-positive rate 21.5%, PR-AUC 0.698, and ROC-AUC 0.929. The active model is `models/cloudflare_portable_model.json`; the supplied model remains at `models/cloudflare_portable_model.legacy-131.json`.
 
-No Gemini, D1, UI, PWA, or Push work has been started.
+Python and TypeScript inference agree on a golden input within `1e-15`. No Gemini, D1, UI, PWA, or Push work has been started.

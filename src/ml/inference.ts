@@ -3,7 +3,7 @@ import { MODEL_FEATURE_NAMES } from "./feature-names.js";
 interface BundleModel {
   selected_model: string;
   threshold: number;
-  preprocessor: { feature_names: string[]; numeric_cols: string[]; category_cols: string[]; means: Record<string, number>; stds: Record<string, number>; levels: Record<string, string[]> };
+  preprocessor: { feature_names: string[]; numeric_cols: string[]; category_cols: string[]; medians: Record<string, number>; means: Record<string, number>; stds: Record<string, number>; levels: Record<string, string[]> };
   model: { type: string; coef: number[]; intercept: number };
   calibrator: { a: number; b: number };
 }

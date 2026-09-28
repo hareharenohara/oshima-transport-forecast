@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="720">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20" y="30" font-family="sans-serif" font-size="20" font-weight="bold">Validation permutation importance</text>
+<text x="20" y="78" font-family="sans-serif" font-size="13">estimated_duration_minutes</text>
+<rect x="250" y="60" width="600.0" height="24" fill="#2563eb"/>
+<text x="860.0" y="78" font-family="sans-serif" font-size="13">0.039 PR-AUC drop</text>
+<text x="20" y="120" font-family="sans-serif" font-size="13">journey_wind_wave_height_mean</text>
+<rect x="250" y="102" width="279.4" height="24" fill="#2563eb"/>
+<text x="539.4" y="120" font-family="sans-serif" font-size="13">0.018 PR-AUC drop</text>
+<text x="20" y="162" font-family="sans-serif" font-size="13">journey_wind_wave_height_max</text>
+<rect x="250" y="144" width="218.3" height="24" fill="#2563eb"/>
+<text x="478.3" y="162" font-family="sans-serif" font-size="13">0.014 PR-AUC drop</text>
+<text x="20" y="204" font-family="sans-serif" font-size="13">journey_wind_gusts_10m_min</text>
+<rect x="250" y="186" width="212.6" height="24" fill="#2563eb"/>
+<text x="472.6" y="204" font-family="sans-serif" font-size="13">0.014 PR-AUC drop</text>
+<text x="20" y="246" font-family="sans-serif" font-size="13">pre3h_wind_gusts_10m_max</text>
+<rect x="250" y="228" width="198.0" height="24" fill="#2563eb"/>
+<text x="458.0" y="246" font-family="sans-serif" font-size="13">0.013 PR-AUC drop</text>
+<text x="20" y="288" font-family="sans-serif" font-size="13">pre6h_wind_gusts_10m_min</text>
+<rect x="250" y="270" width="197.8" height="24" fill="#2563eb"/>
+<text x="457.8" y="288" font-family="sans-serif" font-size="13">0.013 PR-AUC drop</text>
+<text x="20" y="330" font-family="sans-serif" font-size="13">pre6h_wind_gusts_10m_max</text>
+<rect x="250" y="312" width="192.1" height="24" fill="#2563eb"/>
+<text x="452.1" y="330" font-family="sans-serif" font-size="13">0.012 PR-AUC drop</text>
+<text x="20" y="372" font-family="sans-serif" font-size="13">pre6h_wind_gusts_10m_mean</text>
+<rect x="250" y="354" width="174.3" height="24" fill="#2563eb"/>
+<text x="434.3" y="372" font-family="sans-serif" font-size="13">0.011 PR-AUC drop</text>
+<text x="20" y="414" font-family="sans-serif" font-size="13">journey_wind_speed_10m_min</text>
+<rect x="250" y="396" width="171.8" height="24" fill="#2563eb"/>
+<text x="431.8" y="414" font-family="sans-serif" font-size="13">0.011 PR-AUC drop</text>
+<text x="20" y="456" font-family="sans-serif" font-size="13">journey_wind_gusts_10m_max</text>
+<rect x="250" y="438" width="162.5" height="24" fill="#2563eb"/>
+<text x="422.5" y="456" font-family="sans-serif" font-size="13">0.011 PR-AUC drop</text>
+<text x="20" y="498" font-family="sans-serif" font-size="13">journey_wind_gusts_10m_mean</text>
+<rect x="250" y="480" width="150.1" height="24" fill="#2563eb"/>
+<text x="410.1" y="498" font-family="sans-serif" font-size="13">0.010 PR-AUC drop</text>
+<text x="20" y="540" font-family="sans-serif" font-size="13">change_6h_wave_height</text>
+<rect x="250" y="522" width="116.0" height="24" fill="#2563eb"/>
+<text x="376.0" y="540" font-family="sans-serif" font-size="13">0.008 PR-AUC drop</text>
+<text x="20" y="582" font-family="sans-serif" font-size="13">pre3h_wind_gusts_10m_mean</text>
+<rect x="250" y="564" width="107.4" height="24" fill="#2563eb"/>
+<text x="367.4" y="582" font-family="sans-serif" font-size="13">0.007 PR-AUC drop</text>
+<text x="20" y="624" font-family="sans-serif" font-size="13">journey_swell_wave_height_max</text>
+<rect x="250" y="606" width="98.3" height="24" fill="#2563eb"/>
+<text x="358.3" y="624" font-family="sans-serif" font-size="13">0.006 PR-AUC drop</text>
+<text x="20" y="666" font-family="sans-serif" font-size="13">pre6h_wind_speed_10m_min</text>
+<rect x="250" y="648" width="94.0" height="24" fill="#2563eb"/>
+<text x="354.0" y="666" font-family="sans-serif" font-size="13">0.006 PR-AUC drop</text>
+</svg>

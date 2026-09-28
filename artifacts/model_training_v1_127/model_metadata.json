@@ -1,0 +1,53 @@
+{
+  "selected_common_model": "logistic",
+  "selected_threshold": 0.03,
+  "validation": {
+    "threshold": 0.03,
+    "tp": 150,
+    "fp": 413,
+    "tn": 1185,
+    "fn": 2,
+    "recall": 0.9868421052631579,
+    "precision": 0.2664298401420959,
+    "false_positive_rate": 0.25844806007509386,
+    "specificity": 0.7415519399249061,
+    "alert_rate": 0.32171428571428573,
+    "accuracy": 0.7628571428571429,
+    "pr_auc": 0.7349229782961764,
+    "roc_auc": 0.9615823232988604,
+    "brier": 0.04000965085981605,
+    "scope": "all",
+    "model": "logistic",
+    "split": "validation",
+    "target_recall": 0.98
+  },
+  "test": {
+    "threshold": 0.03,
+    "tp": 96,
+    "fp": 201,
+    "tn": 732,
+    "fn": 8,
+    "recall": 0.9230769230769231,
+    "precision": 0.32323232323232326,
+    "false_positive_rate": 0.21543408360128619,
+    "specificity": 0.7845659163987139,
+    "alert_rate": 0.28640308582449375,
+    "accuracy": 0.7984570877531341,
+    "pr_auc": 0.6984625298274505,
+    "roc_auc": 0.9292089207684063,
+    "brier": 0.05293087890252191,
+    "scope": "all",
+    "model": "logistic",
+    "split": "test",
+    "target_recall": 0.98
+  },
+  "feature_count": 127,
+  "features_version": "v1-127",
+  "removed_features": [
+    "journey_swell_wave_direction_circular_mean_deg",
+    "journey_wave_direction_circular_mean_deg",
+    "journey_wind_direction_10m_circular_mean_deg",
+    "journey_wind_wave_direction_circular_mean_deg"
+  ],
+  "target_recall": 0.98
+}
