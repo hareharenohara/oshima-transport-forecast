@@ -2,6 +2,8 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "tokai-kisen-forecast",
   "main": "src/worker/index.ts",
+  "workers_dev": true,
+  "preview_urls": true,
   "compatibility_date": "2026-09-28",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
@@ -26,7 +28,7 @@
         {
           "binding": "DB",
           "database_name": "tokai-kisen-forecast-preview",
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "344b6c7b-a0f3-4d2d-bb2e-adcb06ea5212",
           "migrations_dir": "migrations"
         }
       ]

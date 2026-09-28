@@ -6,4 +6,6 @@ The scheduled handler runs every two hours. A unique UTC two-hour `run_slot` pre
 
 Read APIs expose day summaries, latest service state with changes from the prior prediction, and complete prediction history. Local integration on 2026-09-28 verified one service, two ML model combinations, a generated Gemini assessment, and duplicate-run suppression.
 
-The UUID in `wrangler.jsonc` is a local placeholder. Before remote preview or production deployment, create each D1 database and replace the corresponding `database_id`; then apply the migrations remotely. Production deployment has not been performed.
+The preview D1 database is provisioned in Cloudflare APAC, migration `0001_phase3.sql` is applied remotely, and `GEMINI_API_KEY` is registered as a preview secret. Preview Worker version `a6c4d3fa-2057-426e-b233-bc146c66f72f` is deployed at `https://tokai-kisen-forecast-preview.hareharenohara.workers.dev`; remote health and empty-D1 reads were verified on 2026-09-28.
+
+The production UUID remains a placeholder. Create and migrate the production D1 database before production deployment. The preview database currently has no service schedule rows, so scheduled runs have no prediction targets until schedule ingestion is implemented.

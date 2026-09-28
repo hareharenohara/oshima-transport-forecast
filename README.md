@@ -1,6 +1,8 @@
 # 伊豆大島・東海汽船 就航予測システム
 
-東海汽船の伊豆大島関連便について、未来の気象・海象から気象欠航リスクを検出し、複数予報モデルとGeminiの二段階評価を返すシステムです。Phase 1・2と、Phase 3のローカルD1/Cron基盤を実装済みです。
+東海汽船の伊豆大島関連便について、未来の気象・海象から気象欠航リスクを検出し、複数予報モデルとGeminiの二段階評価を返すシステムです。Phase 1・2と、Phase 3のD1/Cron preview基盤を実装済みです。
+
+Preview Worker: `https://tokai-kisen-forecast-preview.hareharenohara.workers.dev`
 
 ## 現在の機能
 
