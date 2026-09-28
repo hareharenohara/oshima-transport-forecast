@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsc && node --test dist/test/*.test.js",
     "predict": "tsc && node dist/src/cli.js",
+    "predict:multi": "tsc && node dist/src/multi-cli.js",
     "worker:types": "wrangler types worker-configuration.d.ts",
     "worker:dev": "wrangler dev --local",
     "worker:check": "wrangler deploy --dry-run --env preview --outdir dist/worker"

@@ -15,7 +15,10 @@ export function validateAssessment(x: unknown): FinalAssessment {
 }
 
 export async function generateFinalAssessment(input: unknown, apiKey: string, fetchFn: typeof fetch = fetch): Promise<FinalAssessment> {
-  const response = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELS.final}:generateContent`, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは伊豆大島航路の予測補助です。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げてください。入力:\n${JSON.stringify(input)}` }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema } }) });
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELS.final}:generateContent`;
+  const init: RequestInit = { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ parts: [{ text: `あなたは伊豆大島航路の予測補助です。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げてください。入力:\n${JSON.stringify(input)}` }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema } }) };
+  let response = await fetchFn(url, init);
+  if (response.status === 429 || response.status >= 500) { await new Promise((resolve) => setTimeout(resolve, 1000)); response = await fetchFn(url, init); }
   if (!response.ok) throw new Error(`Gemini HTTP ${response.status}`);
   const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;

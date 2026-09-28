@@ -8,15 +8,16 @@ type ApiPayload = { hourly?: Record<string, Array<string | number | null>>; hour
 
 const parseJst = (value: string) => Date.parse(`${value}:00+09:00`);
 
-async function fetchBatch(base: string, variables: readonly string[], fetchFn: typeof fetch): Promise<HourlyPoint[]> {
+export async function fetchBatch(base: string, variables: readonly string[], fetchFn: typeof fetch, model?: string): Promise<HourlyPoint[]> {
   const url = new URL(base);
   url.searchParams.set("latitude", FORECAST_POINTS.map((p) => p.latitude).join(","));
   url.searchParams.set("longitude", FORECAST_POINTS.map((p) => p.longitude).join(","));
   url.searchParams.set("hourly", variables.join(","));
   url.searchParams.set("timezone", "Asia/Tokyo");
   url.searchParams.set("forecast_days", "5");
-  if (base.includes("forecast")) url.searchParams.set("wind_speed_unit", "ms");
+  if (variables.includes("wind_speed_10m")) url.searchParams.set("wind_speed_unit", "ms");
   if (base.includes("marine")) url.searchParams.set("cell_selection", "sea");
+  if (model) url.searchParams.set("models", model);
   let response = await fetchFn(url, { headers: { "User-Agent": "tokai-kisen-forecast-phase1/0.1" } });
   if (!response.ok && (response.status === 429 || response.status >= 500)) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
