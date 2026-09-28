@@ -8,4 +8,8 @@ Read APIs expose day summaries, latest service state with changes from the prior
 
 The preview D1 database is provisioned in Cloudflare APAC, migration `0001_phase3.sql` is applied remotely, and `GEMINI_API_KEY` is registered as a preview secret. Preview Worker version `a6c4d3fa-2057-426e-b233-bc146c66f72f` is deployed at `https://tokai-kisen-forecast-preview.hareharenohara.workers.dev`; remote health and empty-D1 reads were verified on 2026-09-28.
 
-The production UUID remains a placeholder. Create and migrate the production D1 database before production deployment. The preview database currently has no service schedule rows, so scheduled runs have no prediction targets until schedule ingestion is implemented.
+The production UUID remains a placeholder. Create and migrate the production D1 database before production deployment. The preview database is populated by the scheduled handler rather than by manual seed data.
+
+Schedule ingestion is now implemented through a replaceable `ScheduleProvider`. Bundled rules are based on the official Tokai Kisen timetables checked on 2026-09-28. They cover verified core Oshima services from 2026-09-28 through 2027-01-31, including published large-ship exclusion dates. Calendar-dependent A/B/C jet services are deliberately excluded until their calendar can be represented and tested without guessing.
+
+Each Cron upserts the next four days before selecting prediction targets. Open-Meteo model responses are fetched once per run and reused across services. A local live run synced 23 services and completed 20 eligible service predictions in about five seconds with no service errors; every saved service contained two valid ML model combinations.

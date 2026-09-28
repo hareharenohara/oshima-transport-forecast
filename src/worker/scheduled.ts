@@ -1,4 +1,7 @@
 import { assessService } from "../pipeline/assessment.js";
+import { fetchMultiModelSources } from "../forecast/multi-model.js";
+import { BundledOfficialScheduleProvider } from "../schedule/bundled.js";
+import { syncSchedule } from "../schedule/sync.js";
 import { acquireRun, finishRun, logRun, saveAssessment, upcomingServices } from "../storage/d1.js";
 
 export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string }
@@ -17,11 +20,17 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
   let errorCount = 0;
   let targetCount = 0;
   try {
+    const fromDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(now);
+    const rangeEnd = new Date(now.getTime() + 4 * 86_400_000);
+    const toDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(rangeEnd);
+    const schedule = await syncSchedule(env.DB, new BundledOfficialScheduleProvider(), fromDate, toDate, now);
+    await logRun(env.DB, run.id, "info", "schedule_synced", undefined, `${schedule.count} services`);
     const services = await upcomingServices(env.DB, now);
     targetCount = services.length;
+    const sources = services.length > 0 ? await fetchMultiModelSources(fetchFn) : undefined;
     for (const service of services) {
       try {
-        const assessment = await assessService(service, env.GEMINI_API_KEY, fetchFn);
+        const assessment = await assessService(service, env.GEMINI_API_KEY, fetchFn, sources);
         await saveAssessment(env.DB, run.id, service.serviceId, assessment, new Date().toISOString());
         successCount++;
         if (assessment.aiStatus === "unavailable") await logRun(env.DB, run.id, "warn", "gemini_unavailable", service.serviceId, assessment.error);

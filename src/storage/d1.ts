@@ -28,7 +28,7 @@ export async function acquireRun(db: D1Database, now: Date): Promise<{ id: strin
   return result.meta.changes === 1 ? { id, slot } : null;
 }
 
-export async function upcomingServices(db: D1Database, now: Date, horizonDays = 5): Promise<ServiceInput[]> {
+export async function upcomingServices(db: D1Database, now: Date, horizonDays = 4): Promise<ServiceInput[]> {
   const until = new Date(now.getTime() + horizonDays * 86_400_000).toISOString();
   const rows = await db.prepare(`SELECT id, service_number, ship_type, origin, destination, counterpart_terminal,
     scheduled_departure, scheduled_arrival FROM services

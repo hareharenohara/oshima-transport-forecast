@@ -14,7 +14,7 @@ export const MARINE_MODELS = [
   { id: "ncep_gfswave025", label: "GFS Wave" }
 ] as const;
 
-export async function runMultiModelPredictions(service: ServiceInput, bundle: ModelBundle, fetchFn: typeof fetch = fetch) {
+export async function fetchMultiModelSources(fetchFn: typeof fetch = fetch) {
   const weatherResults = await Promise.allSettled(WEATHER_MODELS.map(async (m) => ({ model: m, rows: await fetchBatch(m.url, WEATHER_VARIABLES, fetchFn, m.id) })));
   const marineResults = await Promise.allSettled(MARINE_MODELS.map(async (m) => ({ model: m, rows: await fetchBatch("https://marine-api.open-meteo.com/v1/marine", MARINE_VARIABLES, fetchFn, m.id) })));
   const weather = weatherResults.flatMap((r) => r.status === "fulfilled" ? [r.value] : []);
@@ -23,6 +23,13 @@ export async function runMultiModelPredictions(service: ServiceInput, bundle: Mo
     ...weatherResults.flatMap((r, i) => r.status === "rejected" ? [{ type: "weather", model: WEATHER_MODELS[i]!.label, error: String(r.reason) }] : []),
     ...marineResults.flatMap((r, i) => r.status === "rejected" ? [{ type: "marine", model: MARINE_MODELS[i]!.label, error: String(r.reason) }] : [])
   ];
+  return { weather, marine, failures };
+}
+
+export type MultiModelSources = Awaited<ReturnType<typeof fetchMultiModelSources>>;
+
+export async function runMultiModelPredictions(service: ServiceInput, bundle: ModelBundle, fetchFn: typeof fetch = fetch, providedSources?: MultiModelSources) {
+  const { weather, marine, failures } = providedSources ?? await fetchMultiModelSources(fetchFn);
   const predictions = weather.flatMap((w) => marine.map((m) => {
     const forecasts: NormalizedForecasts = { weather: w.rows, marine: m.rows, fetchedAt: new Date().toISOString() };
     const built = buildFeatures(service, forecasts); validateFeatures(built.vector);

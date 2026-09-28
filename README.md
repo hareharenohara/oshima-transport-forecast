@@ -4,6 +4,8 @@
 
 Preview Worker: `https://tokai-kisen-forecast-preview.hareharenohara.workers.dev`
 
+Cronは公式時刻表から確認済みの基幹便をD1へ同期してから、4日先までの未出航便を予測します。同一Cron内のOpen-Meteo予報は全便で共有されます。
+
 ## 現在の機能
 
 1便の予定情報を受け取り、Open-Meteoから監査済み11地点の5日予報を取得し、学習時と同じ時間窓で127特徴量を生成・検証して欠航確率を返します。不一致や欠損時は数値を捏造せず `prediction_unavailable` にします。
