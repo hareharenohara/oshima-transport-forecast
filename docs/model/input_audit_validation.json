@@ -1,0 +1,27 @@
+{
+  "readiness": "Needs revision before production",
+  "all_audit_artifacts_consistent": true,
+  "checks": {
+    "spec_has_one_row_per_current_feature": true,
+    "spec_feature_names_unique": true,
+    "spec_order_matches_model_vector": true,
+    "all_fields_have_meaning": true,
+    "all_fields_have_location_scope": true,
+    "all_fields_have_time_window": true,
+    "all_fields_have_transformation": true,
+    "all_fields_have_reproducibility_judgment": true,
+    "forecast_validation_has_11_locations": true,
+    "forecast_validation_has_15_raw_variables": true,
+    "forecast_validation_all_120_hours": true,
+    "forecast_validation_all_values_present": true,
+    "forecast_validation_timezone_jst": true,
+    "four_direction_degree_features_removed": true,
+    "worker_python_probability_parity": true
+  },
+  "worker_python_probability_difference": 4.7704895589362195e-18,
+  "material_remaining_risks": [
+    "地点別ではなく航路地点を一括集計している",
+    "推定所要時間が公式ダイヤ由来ではない固定仮定",
+    "再解析学習値と未来予報値の分布差を未検証"
+  ]
+}

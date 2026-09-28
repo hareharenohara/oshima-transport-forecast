@@ -1,0 +1,6 @@
+﻿original_feature,action,reason
+journey_wind_direction_10m_circular_mean_deg,削除,風向・波向はsin/cosで表現済み。角度値は0/360度境界で不連続かつ重複
+journey_wave_direction_circular_mean_deg,削除,風向・波向はsin/cosで表現済み。角度値は0/360度境界で不連続かつ重複
+journey_wind_wave_direction_circular_mean_deg,削除,風向・波向はsin/cosで表現済み。角度値は0/360度境界で不連続かつ重複
+journey_swell_wave_direction_circular_mean_deg,削除,風向・波向はsin/cosで表現済み。角度値は0/360度境界で不連続かつ重複
+voyage_number=*.0,表記修正,1100.0等を1100へ正規化し、本番予定データとの不一致を防止
