@@ -1,0 +1,2 @@
+# Copy this file to .dev.vars.preview and enter the key only in that ignored file.
+GEMINI_API_KEY=""

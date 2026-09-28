@@ -58,3 +58,15 @@ python scripts/retrain_model_127.py
 - `test`: unit/integration相当のローカルテスト
 
 秘密情報は現在不要です。将来の環境変数は値をコミットせず `.env.example` に名前と説明だけを追加します。
+
+## Gemini APIキー
+
+キーをチャット、ソースコード、`wrangler.jsonc`へ記載しないでください。ローカルpreviewでは `.dev.vars.example` を `.dev.vars.preview` へコピーし、`GEMINI_API_KEY` の値を入力します。このファイルはGit管理から除外されています。
+
+Cloudflare previewへ登録する場合は、次を実行して表示される非表示プロンプトへキーを入力します。
+
+```powershell
+pnpm exec wrangler secret put GEMINI_API_KEY --env preview
+```
+
+productionは公開準備時に `--env production` で別途登録します。
