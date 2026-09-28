@@ -4,6 +4,8 @@
 
 Preview Worker: `https://tokai-kisen-forecast-preview.hareharenohara.workers.dev`
 
+別端末で開発を再開する場合は [開発引き継ぎガイド](docs/HANDOFF.md) を最初に参照してください。
+
 Cronは公式時刻表から確認済みの基幹便をD1へ同期してから、4日先までの未出航便を予測します。同一Cron内のOpen-Meteo予報は全便で共有されます。
 
 ルートURLではスマホ向けUI「島ゆき予報」を配信します。日別サマリー、便一覧、便詳細、ML暫定値、確信度、モデル別欠航リスク、前回比較を表示します。
