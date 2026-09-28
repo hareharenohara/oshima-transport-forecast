@@ -31,3 +31,11 @@ The request body limit is 16 KiB. Responses use `Cache-Control: no-store` becaus
 `POST /api/assess` accepts the same service object. It returns all complete weather/marine ML combinations, their comparison statistics, explicit source failures, the intermediate Gemini summary, and the final assessment. `operation_probability` and `confidence` in the AI result are integer percentages from 0 through 100.
 
 If `GEMINI_API_KEY` is missing or either Gemini stage fails, the request still succeeds with the multi-model result, `aiStatus: "unavailable"`, and `ai: null`. Forecast coverage too small to compare at least two valid combinations returns HTTP 503.
+
+## Stored prediction reads
+
+- `GET /api/days?from=YYYY-MM-DD` returns five days of services with their latest AI prediction.
+- `GET /api/services/:id` returns one service, its latest AI prediction, and changes from the previous prediction when available.
+- `GET /api/services/:id/history` returns append-only AI and per-model ML history, newest first.
+
+These endpoints only read D1. Prediction generation is performed by the internal two-hour Cron handler.

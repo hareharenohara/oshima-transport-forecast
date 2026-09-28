@@ -51,7 +51,7 @@ export function generateFinalAssessment(input: unknown, summary: ForecastSummary
   return generateStructured(GEMINI_MODELS.final, `伊豆大島航路の予測補助として最終評価してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summary)}\n元入力:\n${JSON.stringify(input)}`, finalSchema, validateAssessment, apiKey, fetchFn);
 }
 
-export async function assessWithFallback(input: unknown, ml: unknown, apiKey: string, fetchFn: typeof fetch = fetch) {
+export async function assessWithFallback<T>(input: unknown, ml: T, apiKey: string, fetchFn: typeof fetch = fetch) {
   try {
     const forecastSummary = await generateForecastSummary(input, apiKey, fetchFn);
     try {

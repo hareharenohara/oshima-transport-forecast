@@ -1,17 +1,18 @@
 import modelBundleJson from "../../models/cloudflare_portable_model.json" with { type: "json" };
 import { ROUTE_POINTS } from "../config/forecast-points.js";
 import { fetchForecasts } from "../forecast/open-meteo.js";
-import { runMultiModelPredictions } from "../forecast/multi-model.js";
-import { assessWithFallback } from "../gemini/client.js";
 import { buildFeatures, validateFeatures } from "../ml/build-features.js";
 import { predictRisk, type ModelBundle } from "../ml/inference.js";
+import { assessService } from "../pipeline/assessment.js";
+import { readDays, readHistory, readService } from "../storage/d1.js";
 import type { Direction, ServiceInput, ShipType } from "../types.js";
+import { runScheduled } from "./scheduled.js";
 
 const MODEL_BUNDLE: ModelBundle = modelBundleJson;
 const MAX_BODY_BYTES = 16 * 1024;
 const SHIP_TYPES = new Set<ShipType>(["jet", "large"]);
 const DIRECTIONS = new Set<Direction>(["from_oshima", "to_oshima"]);
-interface WorkerEnv { GEMINI_API_KEY?: string }
+export interface WorkerEnv { DB?: D1Database; GEMINI_API_KEY?: string }
 
 class RequestError extends Error {
   constructor(message: string, readonly status = 400, readonly code = "INVALID_REQUEST") {
@@ -85,16 +86,27 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   if (request.method === "GET" && url.pathname === "/health") {
     return json({ status: "ok", modelVersion: MODEL_BUNDLE.schema_version, featuresVersion: "v1-127" });
   }
+  if (request.method === "GET" && url.pathname === "/api/days") {
+    if (!env.DB) return json({ error: { code: "STORAGE_UNAVAILABLE", message: "Prediction storage is not configured" }, requestId }, 503);
+    const from = url.searchParams.get("from") ?? new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) return json({ error: { code: "INVALID_REQUEST", message: "from must be YYYY-MM-DD" }, requestId }, 400);
+    return json({ days: await readDays(env.DB, from), requestId });
+  }
+  const serviceMatch = url.pathname.match(/^\/api\/services\/([^/]+)(\/history)?$/);
+  if (request.method === "GET" && serviceMatch) {
+    if (!env.DB) return json({ error: { code: "STORAGE_UNAVAILABLE", message: "Prediction storage is not configured" }, requestId }, 503);
+    const serviceId = decodeURIComponent(serviceMatch[1]!);
+    if (serviceMatch[2]) return json({ serviceId, history: await readHistory(env.DB, serviceId), requestId });
+    const service = await readService(env.DB, serviceId);
+    return service ? json({ service, requestId }) : json({ error: { code: "NOT_FOUND", message: "Service not found" }, requestId }, 404);
+  }
   if (!["/api/predict", "/api/assess"].includes(url.pathname)) return json({ error: { code: "NOT_FOUND", message: "Not found" }, requestId }, 404);
   if (request.method !== "POST") return json({ error: { code: "METHOD_NOT_ALLOWED", message: "Use POST" }, requestId }, 405, { Allow: "POST" });
   try {
     const service = parseService(await readJsonWithLimit(request));
     if (url.pathname === "/api/assess") {
-      const multiModel = await runMultiModelPredictions(service, MODEL_BUNDLE, fetchFn);
-      const assessment = env.GEMINI_API_KEY
-        ? await assessWithFallback({ service, comparison: multiModel.comparison, failures: multiModel.failures }, multiModel, env.GEMINI_API_KEY, fetchFn)
-        : { ml: multiModel, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: "GEMINI_API_KEY is not configured" };
-      console.log(JSON.stringify({ event: "assessment_completed", requestId, serviceId: service.serviceId, aiStatus: assessment.aiStatus, modelCount: multiModel.predictions.length }));
+      const assessment = await assessService(service, env.GEMINI_API_KEY, fetchFn);
+      console.log(JSON.stringify({ event: "assessment_completed", requestId, serviceId: service.serviceId, aiStatus: assessment.aiStatus, modelCount: assessment.ml.predictions.length }));
       return json({ serviceId: service.serviceId, ...assessment, requestId });
     }
     const forecasts = await fetchForecasts(fetchFn);
@@ -124,7 +136,11 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
 }
 
 export default {
-  fetch(request: Request, env: Env): Promise<Response> {
+  fetch(request: Request, env: WorkerEnv): Promise<Response> {
     return handleRequest(request, fetch, env);
+  },
+  scheduled(controller: ScheduledController, env: WorkerEnv, ctx: ExecutionContext): void {
+    if (!env.DB) throw new Error("DB binding is required for scheduled runs");
+    ctx.waitUntil(runScheduled({ DB: env.DB, GEMINI_API_KEY: env.GEMINI_API_KEY }, controller.scheduledTime));
   }
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<WorkerEnv>;

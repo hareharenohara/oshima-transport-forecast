@@ -1,6 +1,6 @@
 # 伊豆大島・東海汽船 就航予測システム
 
-東海汽船の伊豆大島関連便について、未来の気象・海象から気象欠航リスクを検出し、複数予報モデルとGeminiの二段階評価を返すシステムです。Phase 1とPhase 2の基盤を実装済みです。
+東海汽船の伊豆大島関連便について、未来の気象・海象から気象欠航リスクを検出し、複数予報モデルとGeminiの二段階評価を返すシステムです。Phase 1・2と、Phase 3のローカルD1/Cron基盤を実装済みです。
 
 ## 現在の機能
 
@@ -24,10 +24,11 @@ Worker APIのローカル起動:
 
 ```powershell
 pnpm worker:types
+pnpm db:migrate:local
 pnpm worker:dev -- --env preview
 ```
 
-別のターミナルから `GET http://127.0.0.1:8787/health`、`POST http://127.0.0.1:8787/api/predict`、または `POST http://127.0.0.1:8787/api/assess` を呼び出します。`/api/assess` は複数モデル比較、Gemini 3.5 Flash-Liteによる整理、Gemini 3.8 Flashによる最終評価を順に実行します。Geminiが失敗した場合もML比較結果を返します。リクエスト仕様は [API](docs/api.md) にあります。
+別のターミナルから `GET http://127.0.0.1:8787/health`、`POST http://127.0.0.1:8787/api/predict`、または `POST http://127.0.0.1:8787/api/assess` を呼び出します。保存済み結果は `GET /api/days`、`GET /api/services/:id`、`GET /api/services/:id/history` で取得できます。`/api/assess` は複数モデル比較、Gemini 3.5 Flash-Liteによる整理、Gemini 3.8 Flashによる最終評価を順に実行します。Geminiが失敗した場合もML比較結果を返します。リクエスト仕様は [API](docs/api.md) にあります。
 
 監査済み127特徴量モデルは提供時系列データから再構築済みです。再学習方法と評価値は [Phase 1 status](docs/phase-1-status.md) を参照してください。
 
