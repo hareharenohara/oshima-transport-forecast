@@ -1,19 +1,19 @@
 # 別端末への開発引き継ぎ
 
-最終更新: 2026-09-28
+最終更新: 2026-09-29
 
 ## リポジトリと公開環境
 
 - GitHub: https://github.com/hareharenohara/oshima-transport-forecast
-- 開発ブランチ: `main`
+- 正本ブランチ: `main`
+- 引継ぎ時の最新コミット: `fc65b70 feat: compact header and show update schedule`
 - Preview UI/API: https://tokai-kisen-forecast-preview.hareharenohara.workers.dev
-- Cloudflare Worker: `tokai-kisen-forecast-preview`
-- Preview D1: `tokai-kisen-forecast-preview`（APAC）
-- Cron: 日本時間の偶数時（0時、2時、…、22時）。CloudflareのUTC設定は `0 1,3,5,7,9,11,13,15,17,19,21,23 * * *`
-- AI: Groq（整理 `openai/gpt-oss-20b`、最終 `openai/gpt-oss-120b`）を主系とし、Geminiを副系にする
-- Preview Worker version: `bab273f9-0dea-4af0-80e8-3e314626d6fe`
+- Preview Worker version: `93e2a1cc-8dbd-481b-a1d5-3d6c23048a5d`
+- Preview D1: `tokai-kisen-forecast-preview`（binding `DB`）
+- Cron: 日本時間の偶数時（0時、2時、…、22時）
+- Cloudflare cron: `0 1,3,5,7,9,11,13,15,17,19,21,23 * * *`
 
-GitHubの `main` が正本です。OneDrive上の元フォルダやDownloads内のZIPがなくても、現在のWorker、モデル、マイグレーション、UI、テストは復元できます。再学習だけは元データZIPが別途必要です。
+GitHubの `main` が正本です。Production D1はまだプレースホルダーなので、`--env production` ではデプロイしないでください。
 
 ## 新しい端末での開始手順
 
@@ -27,89 +27,88 @@ pnpm test
 pnpm worker:check
 ```
 
-動作確認済みの開発環境はNode.js `24.19.0`、pnpm `11.19.0`、Python `3.10.6`、Wrangler `4.141.0` です。Pythonはモデル再学習時だけ必要です。
+動作確認済み環境はNode.js `24.19.0`、pnpm `11.19.0`、Python `3.10.6`、Wrangler `4.141.0`です。通常開発ではPythonは不要です。
 
 ## Cloudflareを操作する場合
+
+別端末では最初にWranglerへログインします。
 
 ```powershell
 pnpm exec wrangler login
 pnpm exec wrangler whoami
-pnpm exec wrangler d1 migrations list tokai-kisen-forecast-preview --remote --env preview
 ```
 
-Cloudflareアカウントは `hareharenohara` のGitHubアカウントとは別の認証です。別端末ではブラウザOAuthによるWranglerログインが必要です。
-
-Previewへ反映する手順:
+Previewへ反映する前に検証します。
 
 ```powershell
 pnpm typecheck
 pnpm test
 pnpm worker:check
-pnpm exec wrangler d1 migrations apply tokai-kisen-forecast-preview --remote --env preview
 pnpm exec wrangler deploy --env preview
 ```
 
-新しいマイグレーションがない場合、migrations applyは何も変更しません。
-
-## Gemini APIキー
-
-キーの値はGitHubに保存していません。Cloudflare previewには `GEMINI_API_KEY` Secretとして登録済みです。そのため、通常のpreviewデプロイだけなら再入力は不要です。
-
-別端末でGeminiを含むローカル実行を行う場合:
+マイグレーションを追加した場合だけ、デプロイ前に以下を実行します。
 
 ```powershell
-Copy-Item .dev.vars.example .dev.vars.preview
+pnpm exec wrangler d1 migrations apply tokai-kisen-forecast-preview --remote --env preview
 ```
 
-作成した `.dev.vars.preview` にキーを入力します。このファイルは `.gitignore` 対象です。キーをチャット、コミット、README、`wrangler.jsonc` に記載しないでください。
+## APIキー
 
-Cloudflare Secretを再登録する必要がある場合だけ、次を実行します。
+GroqとGeminiのキーはGitHubに保存していません。Cloudflare previewにはSecretとして登録済みなので、通常のpreviewデプロイでは再入力不要です。ローカルでAI呼び出しを試す場合だけ `.dev.vars.example` から `.dev.vars.preview` を作り、手元のキーを入力します。キーをソース、文書、チャットへ記載しないでください。
 
-```powershell
-pnpm exec wrangler secret put GEMINI_API_KEY --env preview
-```
+## 現在の判定ロジック
 
-## ローカルD1とWorker
+- AI評価は `S / A / B / C / D` の5段階
+- `S`: 就航の可能性が高い
+- `A`: 就航寄り
+- `B`: 判断が分かれる
+- `C`: 欠航寄り
+- `D`: 欠航の可能性が高い
+- 気象・海象・航路上の予報を先に評価し、MLは最後に参考情報として渡す
+- Groq `openai/gpt-oss-20b`で整理し、`openai/gpt-oss-120b`で最終判断
+- Groq障害時はGeminiへフォールバック
+- 最大4便ずつに分割し、トークン量を抑えて全便を処理
+- AIコメントは日本語を指示しているが、英語検出による強制再生成はユーザー判断で入れていない
 
-```powershell
-pnpm db:migrate:local
-pnpm worker:dev
-```
+## 現在のUI
 
-ローカルD1は `.wrangler/` に作成され、Git管理されません。別端末のローカルD1が空なのは正常です。リモートpreview D1には便・予測履歴があります。
+- 日別カードは初期状態で閉じる
+- 日別評価は便ごとのAI評価の平均を丸め、5分割バーで表示
+- 日付の横に出帆港予測を表示
+- 便一覧は `時間 → 船種 → 航路 → 評価` の1行表示
+- 高速ジェット船は `JF`、大型客船は `大型船`
+- 便詳細のAI評価も5分割表示
+- 確信度、ML参考値の円グラフ、不要な開発者向け見出しは画面から非表示
+- AI評価履歴は保存済みの実在する `S/A/B/C/D` のみを表示
+- 風・突風・波高・波周期・うねり高のグラフに日本時間の横軸を表示
+- ヘッダーは「大島航路予報」と操作ボタンだけに縮小
+- 上部に最終更新時刻と次回更新予定時刻を表示
+- 予測情報の注意書きはページ下部に配置
 
-## 実装済み
+## PWAの状態
 
-- 監査済み127特徴量の生成・欠損拒否
-- V1ロジスティック回帰85%＋地点分離V2 GBDT 15%によるML推論（V1は切り戻し用に保持）
-- JMA MSM、ECMWF IFS、GFS、ECMWF WAM、GFS Waveの比較
-- Gemini 3.5 Flash-Lite整理とGemini 3.8 Flash最終評価
-- Gemini障害時のMLフォールバック
-- D1への追記型予測履歴
-- 2時間Cron、重複実行防止、実行ログ
-- 公式時刻表に基づく基幹便のダイヤ同期
-- 日別、便一覧、便詳細のスマホUI
-- PWA、オフライン時の最終取得値表示、ログイン不要のPush通知設定
-- Preview Worker/D1へのデプロイ
+HTTPS、Manifest、standalone表示、Service Worker、オフライン時の保存済み予測、Push通知は実装済みです。2026-09-29の点検で、次の改善候補を確認しています。
 
-## 現在の注意点
+1. バージョン付きCSS・JavaScriptをService Workerの初回キャッシュへ直接含める。
+2. キャッシュ版をUIの版と連動させる。
+3. 192px、512px、maskable用の正式なPNGアイコンを作る。
+4. 初回インストール直後のオフライン起動テストを追加する。
 
-- 手動検証で保存した既存20便のAI状態は、意図的にGeminiを無効化したため `unavailable` です。UIではML暫定値として表示します。
-- 通常CronではCloudflare Secretが渡るため、以後の履歴ではGemini評価を試行します。
-- A/B/C運航日カレンダーに依存する一部ジェット便は、推測を避けてまだ収録していません。
-- 風、波、うねりの時系列はD1にまだ保存していないため、UIグラフは未実装です。
-- Production D1のIDはプレースホルダーです。`--env production` でデプロイしないでください。
-- このサービスは公式運航情報ではありません。
-- PreviewにはVAPID鍵3種がSecret登録済みで、migration `0003_phase5_push.sql` も適用済みです。秘密鍵はGitに保存していません。
+島・船・波を使ったアイコン試作1案はユーザーが却下したため、実装・デプロイ・Git保存していません。次回は別デザインから検討します。
 
-## 次に行う作業
+## ユーザーとの進め方
 
-1. 予報時系列の保存用マイグレーションを追加する。
-2. Cronで風速、突風、波高、波周期、うねり高の代表系列を保存する。
-3. 便詳細に時系列グラフを追加する。
-4. 通常CronでGemini生成履歴が保存されたことを確認する。
-5. A/B/C運航日カレンダーを公式資料から安全に構造化する。
-6. 完成確認後にproduction D1を作成する。
+UIや仕様を変更するときは、すぐ編集せず具体的な改善案を先に提示し、ユーザーの許可後に実装します。許可後はテスト、Previewデプロイ、配信確認、GitHubへのpushまで行います。
+
+## 次に検討する作業
+
+1. 正式なPWAアイコンの別案を試作する。
+2. 承認されたアイコンを192px、512px、maskable版へ書き出してManifestへ設定する。
+3. Service Workerの初回キャッシュとキャッシュ版管理を強化する。
+4. Android実機でホーム画面追加、更新、オフライン起動を確認する。
+5. UIを継続確認し、日別カードや便詳細の文言・余白を調整する。
+6. 完成確認後にProduction D1を作成する。
 
 ## 状態確認コマンド
 
@@ -123,8 +122,11 @@ pnpm exec wrangler d1 execute tokai-kisen-forecast-preview --remote --env previe
 関連文書:
 
 - `docs/spec.md`: マスター仕様
+- `docs/ai-ordinal-assessment.md`: AI段階評価
 - `docs/phase-1-status.md`: 特徴量とモデル
-- `docs/phase-2-status.md`: 複数モデルとGemini
+- `docs/phase-2-status.md`: 複数モデルとAI
 - `docs/phase-3-status.md`: D1、Cron、ダイヤ
 - `docs/phase-4-status.md`: スマホUI
+- `docs/phase-5-status.md`: PWAと通知
+- `docs/phase-6-status.md`: 公開前検証
 - `docs/api.md`: API仕様
