@@ -1,6 +1,7 @@
 import type { ServiceInput } from "../types.js";
 import type { AssessmentResult } from "../pipeline/assessment.js";
 import type { ServiceForecastSeries } from "../forecast/service-series.js";
+import type { OfficialServiceStatus } from "../schedule/official-status.js";
 
 export interface StoredServiceRow {
   id: string;
@@ -82,6 +83,21 @@ export async function readForecastSeries(db: D1Database, serviceId: string): Pro
   return row ? { forecastRunId: row.forecast_run_id, createdAt: row.created_at, series: JSON.parse(row.payload_json) as ServiceForecastSeries } : null;
 }
 
+export async function saveOfficialStatuses(db: D1Database, statuses: OfficialServiceStatus[], observedAt: string, officialSource: string): Promise<number> {
+  if (!statuses.length) return 0;
+  const results = await db.batch(statuses.map((item) => db.prepare(`INSERT INTO official_service_statuses
+    (service_id, status, port, note, source_updated_at, observed_at, official_source)
+    SELECT s.id, ?, ?, ?, ?, ?, ? FROM services s
+    WHERE s.service_date = ? AND s.service_number = ?
+      AND ((? = 'to_oshima' AND s.destination = '大島') OR (? = 'from_oshima' AND s.origin = '大島'))
+    ON CONFLICT(service_id) DO UPDATE SET status=excluded.status, port=excluded.port, note=excluded.note,
+      source_updated_at=excluded.source_updated_at, observed_at=excluded.observed_at, official_source=excluded.official_source`).bind(
+        item.status, item.port, item.note, item.sourceUpdatedAt, observedAt, officialSource,
+        item.serviceDate, item.serviceNumber, item.direction, item.direction
+      )));
+  return results.reduce((count, result) => count + (result.meta.changes ?? 0), 0);
+}
+
 interface PredictionViewRow {
   service_id: string;
   service_date: string;
@@ -99,16 +115,23 @@ interface PredictionViewRow {
   ai_status: string | null;
   prediction_created_at: string | null;
   ml_operation_probability: number | null;
+  official_status: string | null;
+  official_port: string | null;
+  official_note: string | null;
+  official_source_updated_at: string | null;
+  official_source: string | null;
 }
 
 const LATEST_PREDICTION_SELECT = `SELECT s.id AS service_id, s.service_date, s.service_number, s.ship_type,
   s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.operation_probability, a.confidence,
   a.assessment, a.port_prediction, a.summary, a.ai_status, a.created_at AS prediction_created_at,
+  os.status AS official_status, os.port AS official_port, os.note AS official_note,
+  os.source_updated_at AS official_source_updated_at, os.official_source,
   (SELECT AVG(m.operation_probability) FROM ml_predictions m
     WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = s.id) AS ml_operation_probability
   FROM services s LEFT JOIN ai_predictions a ON a.id = (
     SELECT ap.id FROM ai_predictions ap WHERE ap.service_id = s.id ORDER BY ap.created_at DESC LIMIT 1
-  )`;
+  ) LEFT JOIN official_service_statuses os ON os.service_id = s.id`;
 
 export async function readDays(db: D1Database, fromDate: string, days = 5): Promise<Array<{ date: string; services: PredictionViewRow[] }>> {
   const end = new Date(`${fromDate}T00:00:00+09:00`);

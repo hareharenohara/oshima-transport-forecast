@@ -1,9 +1,10 @@
 import { assessService } from "../pipeline/assessment.js";
 import { fetchMultiModelSources } from "../forecast/multi-model.js";
 import { buildServiceForecastSeries } from "../forecast/service-series.js";
+import { fetchOfficialStatuses, OFFICIAL_STATUS_URL } from "../schedule/official-status.js";
 import { BundledOfficialScheduleProvider } from "../schedule/bundled.js";
 import { syncSchedule } from "../schedule/sync.js";
-import { acquireRun, finishRun, logRun, saveAssessment, saveForecastSeries, upcomingServices } from "../storage/d1.js";
+import { acquireRun, finishRun, logRun, saveAssessment, saveForecastSeries, saveOfficialStatuses, upcomingServices } from "../storage/d1.js";
 import { notifyPredictionChanges } from "../notifications/push.js";
 
 export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
@@ -27,6 +28,13 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
     const toDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(rangeEnd);
     const schedule = await syncSchedule(env.DB, new BundledOfficialScheduleProvider(), fromDate, toDate, now);
     await logRun(env.DB, run.id, "info", "schedule_synced", undefined, `${schedule.count} services`);
+    try {
+      const official = await fetchOfficialStatuses(fetchFn);
+      const saved = await saveOfficialStatuses(env.DB, official, new Date().toISOString(), OFFICIAL_STATUS_URL);
+      await logRun(env.DB, run.id, "info", "official_status_synced", undefined, `${saved} services`);
+    } catch (error) {
+      await logRun(env.DB, run.id, "warn", "official_status_unavailable", undefined, error instanceof Error ? error.message : String(error));
+    }
     const services = await upcomingServices(env.DB, now);
     targetCount = services.length;
     const sources = services.length > 0 ? await fetchMultiModelSources(fetchFn) : undefined;

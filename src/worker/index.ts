@@ -8,7 +8,7 @@ import { readDays, readForecastSeries, readHistory, readService } from "../stora
 import type { Direction, ServiceInput, ShipType } from "../types.js";
 import { runScheduled } from "./scheduled.js";
 import { parsePreferences, parseSubscription, removeSubscription, saveSubscription } from "../notifications/push.js";
-import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER, WEATHER_CHARTS_CSS, WEATHER_CHARTS_JS } from "../ui/assets.js";
+import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, OFFICIAL_STATUS_CSS, OFFICIAL_STATUS_JS, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER, WEATHER_CHARTS_CSS, WEATHER_CHARTS_JS } from "../ui/assets.js";
 
 const MODEL_BUNDLE: ModelBundle = modelBundleJson;
 const MAX_BODY_BYTES = 16 * 1024;
@@ -96,13 +96,14 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML, "text/html; charset=utf-8", "public, max-age=60");
-  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}`, "text/css; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}`, "text/css; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`, "text/javascript; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(PWA_SETTINGS_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/phase6.js") return asset(PHASE6_JS.replace("panel.textContent='就航見込みの前回差は算出できません · 港予測 変更なし'", "panel.textContent=panel.textContent.replace('nullポイント','就航見込みの前回差は算出できません')"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/weather-charts.js") return asset(WEATHER_CHARTS_JS, "text/javascript; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v5").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js'"), "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/official-status.js") return asset(OFFICIAL_STATUS_JS, "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v6").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js','/official-status.js'"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/favicon.svg") return asset(FAVICON_SVG, "image/svg+xml; charset=utf-8", "public, max-age=86400");
   if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/health") {

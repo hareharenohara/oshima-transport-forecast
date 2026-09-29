@@ -50,7 +50,7 @@ test("phase 6 UI renders stored history and handles a missing previous AI delta"
   assert.match(script, /history-panel/);
   assert.match(script, /前回差は算出できません/);
   assert.match(script, /textContent\.replace\('nullポイント'/);
-  assert.match(serviceWorker, /oshima-route-v5/);
+  assert.match(serviceWorker, /oshima-route-v6/);
 });
 
 test("worker serves model-separated weather chart assets", async () => {
@@ -61,7 +61,18 @@ test("worker serves model-separated weather chart assets", async () => {
   assert.match(script, /wave_height/);
   assert.match(script, /swell_wave_height/);
   assert.match(script, /モデル別/);
-  assert.match(serviceWorker, /oshima-route-v5/);
+  assert.match(serviceWorker, /oshima-route-v6/);
+});
+
+test("worker serves collapsed days and official status presentation", async () => {
+  const html = await (await handleRequest(new Request("https://example.test/"))).text();
+  const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
+  const official = await (await handleRequest(new Request("https://example.test/official-status.js"))).text();
+  assert.match(html, /\/official-status\.js/);
+  assert.doesNotMatch(app, /i===0\?'open'/);
+  assert.match(app, /aria-expanded="false"/);
+  assert.match(app, /official_status/);
+  assert.match(official, /公式運航情報/);
 });
 
 test("worker rejects invalid service input before external API calls", async () => {
