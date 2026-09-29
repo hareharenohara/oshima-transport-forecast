@@ -48,6 +48,12 @@ test("batches all services into one summary and one final Gemini call",async()=>
   assert.equal(result.length,2);
   assert.ok(result.every(item=>item.aiStatus==="generated"&&item.ai?.operation_probability===90));
 });
+test("does not spend another Cron batch call after a 429",async()=>{
+  let calls=0;
+  const result=await assessBatchWithFallback([{serviceId:"a",input:{},ml:{}}],"x",async()=>{calls++;return new Response("quota",{status:429})});
+  assert.equal(calls,1);
+  assert.equal(result[0]?.aiStatus,"unavailable");
+});
 test("accepts valid zero and one-hundred percent boundary assessments",()=>{
   for(const value of [0,100]){
     const result=validateAssessment({operation_probability:value,confidence:value,assessment:"境界値",positive_factors:[],negative_factors:[],confidence_reasons:[],port_prediction:"不明",summary:"境界値確認"});

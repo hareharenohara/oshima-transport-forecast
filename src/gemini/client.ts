@@ -47,11 +47,11 @@ function validateBatch<T>(value: unknown, validate: (item: unknown) => T): Array
   });
 }
 
-async function generateStructured<T>(model: string, prompt: string, schema: object, validate: (value: unknown) => T, apiKey: string, fetchFn: typeof fetch): Promise<T> {
+async function generateStructured<T>(model: string, prompt: string, schema: object, validate: (value: unknown) => T, apiKey: string, fetchFn: typeof fetch, retry = true): Promise<T> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const init: RequestInit = { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.1 } }) };
   let response = await fetchFn(url, init);
-  if (response.status === 429 || response.status >= 500) {
+  if (retry && (response.status === 429 || response.status >= 500)) {
     const retryAfter = Number(response.headers.get("retry-after"));
     const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : response.status === 429 ? 5_000 : 1_000;
     await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -77,11 +77,11 @@ export function generateFinalAssessment(input: unknown, summary: ForecastSummary
 }
 
 export function generateBatchForecastSummaries(inputs: Array<{ serviceId: string; input: unknown }>, apiKey: string, fetchFn: typeof fetch = fetch) {
-  return generateStructured(GEMINI_MODELS.summary, `伊豆大島航路の複数便を一括整理してください。各service_idを保持し、入力中の数値だけを使い、欠損モデルを明記し、就航可否を最終判断しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn);
+  return generateStructured(GEMINI_MODELS.summary, `伊豆大島航路の複数便を一括整理してください。各service_idを保持し、入力中の数値だけを使い、欠損モデルを明記し、就航可否を最終判断しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn, false);
 }
 
 export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string; input: unknown }>, summaries: Array<{ serviceId: string; value: ForecastSummary }>, apiKey: string, fetchFn: typeof fetch = fetch) {
-  return generateStructured(GEMINI_MODELS.final, `伊豆大島航路の複数便を一括して最終評価してください。各service_idを保持してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summaries)}\n元入力:\n${JSON.stringify(inputs)}`, batchFinalSchema, (value) => validateBatch(value, validateAssessment), apiKey, fetchFn);
+  return generateStructured(GEMINI_MODELS.final, `伊豆大島航路の複数便を一括して最終評価してください。各service_idを保持してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summaries)}\n元入力:\n${JSON.stringify(inputs)}`, batchFinalSchema, (value) => validateBatch(value, validateAssessment), apiKey, fetchFn, false);
 }
 
 export async function assessBatchWithFallback<T>(items: Array<{ serviceId: string; input: unknown; ml: T }>, apiKey: string, fetchFn: typeof fetch = fetch) {
