@@ -96,18 +96,18 @@ function parseService(value: unknown): ServiceInput {
 export async function handleRequest(request: Request, fetchFn: typeof fetch = fetch, env: WorkerEnv = {}): Promise<Response> {
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
-  if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML.replaceAll('/app.css', '/app.css?v=11').replaceAll('/app.js', '/app.js?v=11').replaceAll('/pwa.js', '/pwa.js?v=11').replaceAll('/pwa-settings.js', '/pwa-settings.js?v=11').replaceAll('/phase6.js', '/phase6.js?v=11').replaceAll('/weather-charts.js', '/weather-charts.js?v=11').replaceAll('/official-status.js', '/official-status.js?v=11'), "text/html; charset=utf-8", "public, max-age=60");
-  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}\n.grade-badge{width:94px;height:94px;border:8px solid var(--sea);border-radius:50%;display:grid;place-content:center;text-align:center;background:var(--card)}.grade-badge b{font-size:30px;line-height:1}.grade-badge small{display:block;font-size:9px;color:var(--muted);margin-top:5px;white-space:nowrap}`, "text/css; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML.replaceAll('/app.css', '/app.css?v=12').replaceAll('/app.js', '/app.js?v=12').replaceAll('/pwa.js', '/pwa.js?v=12').replaceAll('/pwa-settings.js', '/pwa-settings.js?v=12').replaceAll('/phase6.js', '/phase6.js?v=12').replaceAll('/weather-charts.js', '/weather-charts.js?v=12').replaceAll('/official-status.js', '/official-status.js?v=12'), "text/html; charset=utf-8", "public, max-age=60");
+  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}\n.day-summary{grid-template-columns:1fr;gap:12px}.day-scale{width:100%;padding:2px 0}.day-scale-ends{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:2px}.day-scale-track{position:relative;display:grid;grid-template-columns:repeat(5,1fr)}.day-scale-track>i{position:absolute;left:10%;right:10%;top:10px;height:3px;border-radius:3px;background:var(--line)}.day-scale-track span{position:relative;text-align:center}.day-scale-track em{display:block;height:18px;color:transparent;font-size:15px;font-style:normal;line-height:15px}.day-scale-track b{font-size:14px}.day-scale-track .current em{color:var(--sea);text-shadow:0 0 0 4px var(--foam)}.day-scale-track .current b{color:var(--sea);font-size:20px}.ml-reference{display:none}`, "text/css; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`
     .replace("if(row.operation_probability!=null)return Number(row.operation_probability);", "")
-    .replaceAll("予測推移", "ML参考値の推移")
+    .replaceAll("予測推移", "統計モデルの推移")
     .replace("['E','D','C','B','A']", "['D','C','B','A','S']")
     .replace("#detail .detail-grid", "#detail .ml-reference"), "text/javascript; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS.replace("navigator.serviceWorker.register('/sw.js')", "navigator.serviceWorker.register('/sw.js').then(registration=>registration.update())"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(PWA_SETTINGS_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/phase6.js") return asset(PHASE6_JS
     .replace("if(row.operation_probability!=null)return Number(row.operation_probability);", "")
-    .replaceAll("予測推移", "ML参考値の推移")
+    .replaceAll("予測推移", "統計モデルの推移")
     .replace("#detail .detail-grid", "#detail .ml-reference")
     .replace("panel.textContent='就航見込みの前回差は算出できません · 港予測 変更なし'", "panel.textContent=panel.textContent.replace('nullポイント','就航見込みの前回差は算出できません')"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/weather-charts.js") return asset(WEATHER_CHARTS_JS, "text/javascript; charset=utf-8", "no-cache");

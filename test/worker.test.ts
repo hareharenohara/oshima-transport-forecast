@@ -71,8 +71,10 @@ test("worker serves collapsed days and official status presentation", async () =
   assert.match(html, /\/official-status\.js/);
   assert.doesNotMatch(app, /i===0\?'open'/);
   assert.match(app, /aria-expanded="false"/);
-  assert.match(app, /最低AI評価/);
-  assert.match(app, /ML参考 平均/);
+  assert.match(app, /dayScale/);
+  assert.match(app, /便ごとのAI評価の平均/);
+  assert.doesNotMatch(app, /最低AI評価/);
+  assert.doesNotMatch(app, /ML参考 平均/);
   assert.doesNotMatch(app, /平均就航見込み/);
   assert.match(app, /official_status/);
   assert.match(official, /公式運航情報/);
