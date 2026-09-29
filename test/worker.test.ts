@@ -78,7 +78,9 @@ test("worker serves collapsed days and official status presentation", async () =
   assert.doesNotMatch(app, /i===0\?'open'/);
   assert.match(app, /aria-expanded="false"/);
   assert.match(app, /segmentedScale/);
-  assert.match(app, /compactScale/);
+  assert.doesNotMatch(app, /compactScale/);
+  assert.match(app, /listShip=v=>v==='jet'\?'JF':'大型船'/);
+  assert.match(app, /class="service-grade"/);
   assert.doesNotMatch(app, /segmentedScale\('確信度'/);
   assert.doesNotMatch(app, /便ごとのAI評価の平均/);
   assert.doesNotMatch(app, /最低AI評価/);
