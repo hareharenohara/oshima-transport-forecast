@@ -16,6 +16,14 @@ export interface ProviderAssessmentResult<T> {
   aiAudit: { attempts: AiAttempt[]; primaryError?: string };
 }
 
+const GROQ_BATCH_SIZE = 4;
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  return result;
+}
+
 function trackedFetch(fetchFn: typeof fetch, attempts: AiAttempt[]): typeof fetch {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -51,20 +59,31 @@ function attachAudit<T extends object>(results: T[], attempts: AiAttempt[], prim
 export async function assessBatchWithProviderFallback<T>(items: Array<{ serviceId: string; input: unknown; ml: T }>, credentials: AiCredentials, fetchFn: typeof fetch = fetch): Promise<Array<ProviderAssessmentResult<T>>> {
   const attempts: AiAttempt[] = [];
   const instrumented = trackedFetch(fetchFn, attempts);
-  let primaryError: string | undefined;
-  if (credentials.groqApiKey) {
-    try { return attachAudit(await assessGroqBatch(items, credentials.groqApiKey, instrumented), attempts); }
-    catch (error) { primaryError = error instanceof Error ? error.message : String(error); }
+  const results: Array<Omit<ProviderAssessmentResult<T>, "aiAudit">> = [];
+  const errors: string[] = [];
+  for (const group of chunks(items, GROQ_BATCH_SIZE)) {
+    let primaryError: string | undefined;
+    if (credentials.groqApiKey) {
+      try {
+        results.push(...await assessGroqBatch(group, credentials.groqApiKey, instrumented));
+        continue;
+      } catch (error) {
+        primaryError = error instanceof Error ? error.message : String(error);
+        errors.push(primaryError);
+      }
+    }
+    if (credentials.geminiApiKey) {
+      const fallback = await assessGeminiBatch(group, credentials.geminiApiKey, instrumented);
+      results.push(...fallback.map((result) => ({ ...result, aiProviders: { summary: "gemini", final: "gemini" } })));
+      continue;
+    }
+    results.push(...group.map((item) => ({
+      ml: item.ml, forecastSummary: null, ai: null, aiStatus: "unavailable" as const,
+      error: primaryError ?? "No AI provider API key is configured", geminiModels: credentials.groqApiKey ? GROQ_MODELS : GEMINI_MODELS,
+      aiProviders: { summary: credentials.groqApiKey ? "groq" : "none", final: credentials.groqApiKey ? "groq" : "none" }, promptVersion: credentials.groqApiKey ? "assessment-v9-groq-sabcd" : PROMPT_VERSION
+    })));
   }
-  if (credentials.geminiApiKey) {
-    const results = await assessGeminiBatch(items, credentials.geminiApiKey, instrumented);
-    return attachAudit(results.map((result) => ({ ...result, aiProviders: { summary: "gemini", final: "gemini" } })), attempts, primaryError);
-  }
-  return attachAudit(items.map((item) => ({
-    ml: item.ml, forecastSummary: null, ai: null, aiStatus: "unavailable" as const,
-    error: primaryError ?? "No AI provider API key is configured", geminiModels: credentials.groqApiKey ? GROQ_MODELS : GEMINI_MODELS,
-    aiProviders: { summary: credentials.groqApiKey ? "groq" : "none", final: credentials.groqApiKey ? "groq" : "none" }, promptVersion: credentials.groqApiKey ? "assessment-v6-groq-primary" : PROMPT_VERSION
-  })), attempts, primaryError);
+  return attachAudit(results, attempts, errors.length ? errors.join(" | ") : undefined);
 }
 
 export async function assessSingleWithProviderFallback<T>(input: unknown, ml: T, credentials: AiCredentials, fetchFn: typeof fetch = fetch): Promise<ProviderAssessmentResult<T>> {

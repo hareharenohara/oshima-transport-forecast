@@ -54,3 +54,22 @@ test("compacts repeated static knowledge before sending to Groq", () => {
   assert.equal("officialKnowledge" in compacted, false);
   assert.equal("publicExperience" in compacted, false);
 });
+
+test("splits Groq assessments into bounded groups", async () => {
+  const items = Array.from({ length: 9 }, (_, index) => ({ serviceId: `s${index}`, input: { officialCriteria: [] }, ml: { index } }));
+  const groups = [items.slice(0, 4), items.slice(4, 8), items.slice(8)];
+  let requestIndex = 0;
+  const result = await assessBatchWithProviderFallback(items, { groqApiKey: "g" }, async (_input, init) => {
+    const body = JSON.parse(String(init?.body)) as { model: string; messages: Array<{ content: string }> };
+    const group = groups[Math.floor(requestIndex / 2)]!;
+    const serviceIdMentions = (body.messages[1]?.content.match(/"serviceId":/g) ?? []).length;
+    assert.ok(serviceIdMentions <= (body.model === GROQ_MODELS.summary ? 5 : 9));
+    requestIndex++;
+    return body.model === GROQ_MODELS.summary
+      ? groq({ services: group.map((item) => ({ service_id: item.serviceId, ...summary })) }, 100, 20)
+      : groq({ services: group.map((item) => ({ service_id: item.serviceId, ...assessment })) }, 120, 30);
+  });
+  assert.equal(requestIndex, 6);
+  assert.deepEqual(result.map((item) => item.ml), items.map((item) => item.ml));
+  assert.ok(result.every((item) => item.aiStatus === "generated"));
+});
