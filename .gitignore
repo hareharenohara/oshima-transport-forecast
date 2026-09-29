@@ -1,4 +1,5 @@
 node_modules/
+__pycache__/
 dist/
 .env*
 !.env.example
@@ -9,5 +10,7 @@ data/
 artifacts/model_training_v1_127/*.pkl
 artifacts/model_training_v1_127/test_predictions.csv
 artifacts/model_training_v1_127/threshold_analysis.csv
+artifacts/offline_model_benchmark/
+artifacts/model_v2_offline/
 .wrangler/
 

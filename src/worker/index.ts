@@ -1,8 +1,9 @@
-import modelBundleJson from "../../models/cloudflare_portable_model.json" with { type: "json" };
+import modelBundleJson from "../../models/cloudflare_portable_model.v2.json" with { type: "json" };
 import { ROUTE_POINTS } from "../config/forecast-points.js";
 import { fetchForecasts } from "../forecast/open-meteo.js";
 import { buildFeatures, validateFeatures } from "../ml/build-features.js";
-import { predictRisk, type ModelBundle } from "../ml/inference.js";
+import { buildV2HybridRawRecord } from "../ml/build-features-v2.js";
+import { predictEnsembleRisk, type EnsembleModelBundle } from "../ml/inference.js";
 import { assessService } from "../pipeline/assessment.js";
 import { readDays, readForecastSeries, readHistory, readService } from "../storage/d1.js";
 import type { Direction, ServiceInput, ShipType } from "../types.js";
@@ -10,7 +11,7 @@ import { runScheduled } from "./scheduled.js";
 import { parsePreferences, parseSubscription, removeSubscription, saveSubscription } from "../notifications/push.js";
 import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, OFFICIAL_STATUS_CSS, OFFICIAL_STATUS_JS, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER, WEATHER_CHARTS_CSS, WEATHER_CHARTS_JS } from "../ui/assets.js";
 
-const MODEL_BUNDLE: ModelBundle = modelBundleJson;
+const MODEL_BUNDLE: EnsembleModelBundle = modelBundleJson as EnsembleModelBundle;
 const MAX_BODY_BYTES = 16 * 1024;
 const SHIP_TYPES = new Set<ShipType>(["jet", "large"]);
 const DIRECTIONS = new Set<Direction>(["from_oshima", "to_oshima"]);
@@ -107,7 +108,7 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   if (request.method === "GET" && url.pathname === "/favicon.svg") return asset(FAVICON_SVG, "image/svg+xml; charset=utf-8", "public, max-age=86400");
   if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/health") {
-    return json({ status: "ok", modelVersion: MODEL_BUNDLE.schema_version, featuresVersion: "v1-127" });
+    return json({ status: "ok", modelVersion: MODEL_BUNDLE.schema_version, featuresVersion: "v1-127+v2-hybrid-1" });
   }
   if (request.method === "GET" && url.pathname === "/api/push/config") return json({ publicKey: env.VAPID_PUBLIC_KEY ?? null });
   if (url.pathname === "/api/push/subscriptions") {
@@ -166,8 +167,9 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
     const forecasts = await fetchForecasts(fetchFn);
     const built = buildFeatures(service, forecasts);
     validateFeatures(built.vector);
-    const prediction = predictRisk(built.rawRecord, MODEL_BUNDLE);
-    console.log(JSON.stringify({ event: "prediction_completed", requestId, serviceId: service.serviceId, locations: 11, featureCount: 127, modelVersion: prediction.modelVersion }));
+    const v2Raw = buildV2HybridRawRecord(service, forecasts, built.rawRecord);
+    const prediction = predictEnsembleRisk(built.rawRecord, v2Raw, MODEL_BUNDLE);
+    console.log(JSON.stringify({ event: "prediction_completed", requestId, serviceId: service.serviceId, locations: 11, featureCount: 192, modelVersion: prediction.modelVersion }));
     return json({
       serviceId: service.serviceId,
       prediction: {
@@ -178,7 +180,7 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
         modelVersion: prediction.modelVersion,
         featuresVersion: prediction.featuresVersion
       },
-      dataQuality: { status: "complete", locationCount: 11, featureCount: 127, fetchedAt: forecasts.fetchedAt },
+      dataQuality: { status: "complete", locationCount: 11, featureCount: 192, fetchedAt: forecasts.fetchedAt },
       requestId
     });
   } catch (error) {

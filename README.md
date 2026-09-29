@@ -12,7 +12,7 @@ Cronは公式時刻表から確認済みの基幹便をD1へ同期し、東海�
 
 ## 現在の機能
 
-1便の予定情報を受け取り、Open-Meteoから監査済み11地点の5日予報を取得し、学習時と同じ時間窓で127特徴量を生成・検証して欠航確率を返します。不一致や欠損時は数値を捏造せず `prediction_unavailable` にします。
+1便の予定情報を受け取り、Open-Meteoから監査済み11地点の5日予報を取得します。V1の127特徴量と重要地点を分離したV2の192特徴量を同じ時間窓・単位で生成し、V1 85%＋V2 15%の欠航確率を返します。不一致や欠損時は数値を捏造せず `prediction_unavailable` にします。
 
 ## セットアップと検証
 
@@ -38,7 +38,7 @@ pnpm worker:dev
 
 別のターミナルから `GET http://127.0.0.1:8787/health`、`POST http://127.0.0.1:8787/api/predict`、または `POST http://127.0.0.1:8787/api/assess` を呼び出します。保存済み結果は `GET /api/days`、`GET /api/services/:id`、`GET /api/services/:id/history`、`GET /api/services/:id/series` で取得できます。`/api/assess` は複数モデル比較、Gemini 3.5 Flash-Liteによる整理、Gemini 3.8 Flashによる最終評価を順に実行します。Geminiが失敗した場合もML比較結果を返します。リクエスト仕様は [API](docs/api.md) にあります。
 
-監査済み127特徴量モデルは提供時系列データから再構築済みです。再学習方法と評価値は [Phase 1 status](docs/phase-1-status.md) を参照してください。
+監査済み127特徴量モデルは提供時系列データから再構築済みです。地点分離V2と合成モデルの仕様・評価値は [V2実験仕様](docs/model/model_v2_experiment.md) を参照してください。
 
 公開前検証の実施状況と、Android/iPhone実機で残っている確認事項は [Phase 6 status](docs/phase-6-status.md) にあります。
 
@@ -57,14 +57,14 @@ python scripts/rebuild_audited_training_features.py
 python scripts/retrain_model_127.py
 ```
 
-評価成果物は `artifacts/model_training_v1_127/` に生成されます。採用モデルを変更する際は、評価値とゴールデンテストを確認してから `models/cloudflare_portable_model.json` を更新します。
+V1評価成果物は `artifacts/model_training_v1_127/`、V2評価成果物は `artifacts/model_v2_offline/` に生成されます。稼働候補は `models/cloudflare_portable_model.v2.json` で、V1モデルは切り戻し用に保持します。
 
 ## 構成
 
 - `src/config`: 監査済み地点・航路対応
 - `src/forecast`: Open-Meteo取得と正規化
 - `src/ml`: 特徴量生成、検証、モデル互換性確認、推論
-- `models`: 監査済み127入力モデルと提供された旧131入力モデル
+- `models`: 監査済みV1、地点分離V2合成モデル、提供された旧131入力モデル
 - `docs/model`: 監査済みモデル入力仕様と監査結果
 - `test`: unit/integration相当のローカルテスト
 

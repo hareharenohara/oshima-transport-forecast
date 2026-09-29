@@ -1,11 +1,11 @@
-import modelBundleJson from "../../models/cloudflare_portable_model.json" with { type: "json" };
+import modelBundleJson from "../../models/cloudflare_portable_model.v2.json" with { type: "json" };
 import { fetchMultiModelSources, runMultiModelPredictions, type MultiModelSources } from "../forecast/multi-model.js";
 import { buildJudgmentContext, type PreviousPredictionContext } from "../forecast/judgment-context.js";
 import { assessBatchWithFallback, assessWithFallback, GEMINI_MODELS, PROMPT_VERSION } from "../gemini/client.js";
-import type { ModelBundle } from "../ml/inference.js";
+import type { EnsembleModelBundle } from "../ml/inference.js";
 import type { ServiceInput } from "../types.js";
 
-const MODEL_BUNDLE: ModelBundle = modelBundleJson;
+const MODEL_BUNDLE: EnsembleModelBundle = modelBundleJson as EnsembleModelBundle;
 
 export async function assessService(service: ServiceInput, apiKey: string | undefined, fetchFn: typeof fetch = fetch, sources?: MultiModelSources, unavailableReason = "GEMINI_API_KEY is not configured") {
   const resolvedSources = sources ?? await fetchMultiModelSources(fetchFn);

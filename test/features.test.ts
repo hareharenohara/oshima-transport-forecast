@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildFeatures, validateFeatures } from "../src/ml/build-features.js";
+import { buildV2HybridRawRecord } from "../src/ml/build-features-v2.js";
 import { MODEL_FEATURE_NAMES, NUMERIC_FEATURE_NAMES } from "../src/ml/feature-names.js";
 import type { HourlyPoint, NormalizedForecasts, ServiceInput } from "../src/types.js";
 
@@ -45,4 +46,13 @@ test("does not silently fill missing forecast data", () => {
   const broken = { ...forecasts, marine: forecasts.marine.filter((r) => !(r.timestampMs >= Math.floor(departure / HOUR) * HOUR && r.values.wave_period)) };
   const built = buildFeatures(service, broken);
   assert.throws(() => validateFeatures(built.vector), /Feature validation failed/);
+});
+
+test("builds decision-critical point features without route-wide averaging", () => {
+  const v1 = buildFeatures(service, forecasts);
+  const v2 = buildV2HybridRawRecord(service, forecasts, v1.rawRecord);
+  assert.equal(v2.point__oshima_north_okata__wind_gusts_10m_max, 8);
+  assert.equal(v2.point__oshima_west_motomachi__wave_height_max, 1.02);
+  assert.equal(v2.role__counterpart_terminal__wind_speed_10m_max, 5.2);
+  assert.equal(v2.point__uraga_channel__hours_wave_ge_2_5m_pre6_to_arrival, 0);
 });

@@ -66,7 +66,7 @@ export async function readPreviousPredictionContexts(db: D1Database, serviceIds:
 }
 
 interface PersistableAssessment {
-  ml: { predictions: Array<{ cancellationProbability: number; weatherModel: string; marineModel: string }> };
+  ml: { predictions: Array<{ cancellationProbability: number; weatherModel: string; marineModel: string; modelVersion?: string; featuresVersion?: string }> };
   forecastSummary: ForecastSummary | null;
   ai: FinalAssessment | null;
   aiStatus: "generated" | "unavailable";
@@ -76,11 +76,11 @@ interface PersistableAssessment {
 }
 
 export async function saveAssessment(db: D1Database, runId: string, serviceId: string, result: PersistableAssessment, createdAt: string): Promise<void> {
-  const statements = result.ml.predictions.map((prediction: { cancellationProbability: number; weatherModel: string; marineModel: string }) =>
+  const statements = result.ml.predictions.map((prediction) =>
     db.prepare(`INSERT INTO ml_predictions (id, forecast_run_id, service_id, cancellation_probability,
       operation_probability, model_version, features_version, weather_model, marine_model, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), runId, serviceId,
-      prediction.cancellationProbability, 1 - prediction.cancellationProbability, "v1-127", "v1-127",
+      prediction.cancellationProbability, 1 - prediction.cancellationProbability, prediction.modelVersion ?? "v1-127", prediction.featuresVersion ?? "v1-127",
       prediction.weatherModel, prediction.marineModel, createdAt)
   );
   const ai = result.ai;

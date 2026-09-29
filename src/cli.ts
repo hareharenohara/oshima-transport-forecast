@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { buildFeatures, validateFeatures } from "./ml/build-features.js";
+import { buildV2HybridRawRecord } from "./ml/build-features-v2.js";
 import { fetchForecasts } from "./forecast/open-meteo.js";
-import { predictRisk, type ModelBundle } from "./ml/inference.js";
+import { predictEnsembleRisk, type EnsembleModelBundle } from "./ml/inference.js";
 import type { ServiceInput } from "./types.js";
 
 function argument(name: string): string | undefined {
@@ -28,18 +29,19 @@ const service: ServiceInput = {
 const forecasts = await fetchForecasts();
 const features = buildFeatures(service, forecasts);
 validateFeatures(features.vector);
-const bundle = JSON.parse(await readFile(new URL("models/cloudflare_portable_model.json", `file:///${process.cwd().replaceAll("\\", "/")}/`), "utf8")) as ModelBundle;
+const bundle = JSON.parse(await readFile(new URL("models/cloudflare_portable_model.v2.json", `file:///${process.cwd().replaceAll("\\", "/")}/`), "utf8")) as EnsembleModelBundle;
+const v2RawRecord = buildV2HybridRawRecord(service, forecasts, features.rawRecord);
 const debug = {
   service,
   fetchedAt: forecasts.fetchedAt,
   routePointIds: features.routePointIds,
   fetchedLocationCount: new Set([...forecasts.weather, ...forecasts.marine].map((r) => r.locationId)).size,
   environmentRowsUsed: features.environmentRowsUsed,
-  featureCount: Object.keys(features.vector).length,
+  featureCount: bundle.v2_component.preprocessor.feature_names.length,
   features: features.vector
 };
 try {
-  console.log(JSON.stringify({ status: "ok", debug, prediction: predictRisk(features.rawRecord, bundle) }, null, 2));
+  console.log(JSON.stringify({ status: "ok", debug, prediction: predictEnsembleRisk(features.rawRecord, v2RawRecord, bundle) }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ status: "prediction_unavailable", reason: error instanceof Error ? error.message : String(error), debug }, null, 2));
   process.exitCode = 2;

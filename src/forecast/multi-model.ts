@@ -1,6 +1,7 @@
 import type { NormalizedForecasts, ServiceInput } from "../types.js";
 import { buildFeatures, validateFeatures } from "../ml/build-features.js";
-import { predictRisk, type ModelBundle } from "../ml/inference.js";
+import { buildV2HybridRawRecord } from "../ml/build-features-v2.js";
+import { predictEnsembleRisk, type EnsembleModelBundle } from "../ml/inference.js";
 import { compareModels } from "./model-comparison.js";
 import { fetchBatch, MARINE_VARIABLES, WEATHER_VARIABLES } from "./open-meteo.js";
 
@@ -28,13 +29,20 @@ export async function fetchMultiModelSources(fetchFn: typeof fetch = fetch) {
 
 export type MultiModelSources = Awaited<ReturnType<typeof fetchMultiModelSources>>;
 
-export async function runMultiModelPredictions(service: ServiceInput, bundle: ModelBundle, fetchFn: typeof fetch = fetch, providedSources?: MultiModelSources) {
+export async function runMultiModelPredictions(service: ServiceInput, bundle: EnsembleModelBundle, fetchFn: typeof fetch = fetch, providedSources?: MultiModelSources) {
   const { weather, marine, failures } = providedSources ?? await fetchMultiModelSources(fetchFn);
   const predictions = weather.flatMap((w) => marine.map((m) => {
     const forecasts: NormalizedForecasts = { weather: w.rows, marine: m.rows, fetchedAt: new Date().toISOString() };
     const built = buildFeatures(service, forecasts); validateFeatures(built.vector);
-    const prediction = predictRisk(built.rawRecord, bundle);
-    return { weatherModel: w.model.label, marineModel: m.model.label, cancellationProbability: prediction.cancellationProbability };
+    const v2Raw = buildV2HybridRawRecord(service, forecasts, built.rawRecord);
+    const prediction = predictEnsembleRisk(built.rawRecord, v2Raw, bundle);
+    return {
+      weatherModel: w.model.label,
+      marineModel: m.model.label,
+      cancellationProbability: prediction.cancellationProbability,
+      modelVersion: prediction.modelVersion,
+      featuresVersion: prediction.featuresVersion
+    };
   }));
   if (predictions.length < 2) throw new Error(`Insufficient forecast models: ${JSON.stringify(failures)}`);
   const comparison = compareModels(predictions.map((p) => ({ model: `${p.weatherModel} + ${p.marineModel}`, value: p.cancellationProbability })), 0.08, 0.2);

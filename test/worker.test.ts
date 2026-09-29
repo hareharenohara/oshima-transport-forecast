@@ -7,7 +7,7 @@ import { MARINE_VARIABLES, WEATHER_VARIABLES } from "../src/forecast/open-meteo.
 test("worker health reports model versions", async () => {
   const response = await handleRequest(new Request("https://example.test/health"));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { status: "ok", modelVersion: "v1-127", featuresVersion: "v1-127" });
+  assert.deepEqual(await response.json(), { status: "ok", modelVersion: "v2-ensemble-1", featuresVersion: "v1-127+v2-hybrid-1" });
 });
 
 test("worker serves the mobile forecast UI with security headers", async () => {
@@ -124,7 +124,7 @@ test("worker runs forecast fixture through features and ML inference", async () 
   }), mockFetch);
   assert.equal(response.status, 200);
   const body = await response.json() as { prediction: { cancellationProbability: number; modelVersion: string }; dataQuality: { featureCount: number } };
-  assert.equal(body.prediction.modelVersion, "v1-127");
-  assert.equal(body.dataQuality.featureCount, 127);
+  assert.equal(body.prediction.modelVersion, "v2-ensemble-1");
+  assert.equal(body.dataQuality.featureCount, 192);
   assert.ok(body.prediction.cancellationProbability >= 0 && body.prediction.cancellationProbability <= 1);
 });

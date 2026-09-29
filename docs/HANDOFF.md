@@ -80,7 +80,7 @@ pnpm worker:dev
 ## 実装済み
 
 - 監査済み127特徴量の生成・欠損拒否
-- 学習済みロジスティック回帰モデルによるML推論
+- V1ロジスティック回帰85%＋地点分離V2 GBDT 15%によるML推論（V1は切り戻し用に保持）
 - JMA MSM、ECMWF IFS、GFS、ECMWF WAM、GFS Waveの比較
 - Gemini 3.5 Flash-Lite整理とGemini 3.8 Flash最終評価
 - Gemini障害時のMLフォールバック
