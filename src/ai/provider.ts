@@ -80,7 +80,7 @@ export async function assessBatchWithProviderFallback<T>(items: Array<{ serviceI
     results.push(...group.map((item) => ({
       ml: item.ml, forecastSummary: null, ai: null, aiStatus: "unavailable" as const,
       error: primaryError ?? "No AI provider API key is configured", geminiModels: credentials.groqApiKey ? GROQ_MODELS : GEMINI_MODELS,
-      aiProviders: { summary: credentials.groqApiKey ? "groq" : "none", final: credentials.groqApiKey ? "groq" : "none" }, promptVersion: credentials.groqApiKey ? "assessment-v9-groq-sabcd" : PROMPT_VERSION
+      aiProviders: { summary: credentials.groqApiKey ? "groq" : "none", final: credentials.groqApiKey ? "groq" : "none" }, promptVersion: credentials.groqApiKey ? "assessment-v10-groq-weather-first" : PROMPT_VERSION
     })));
   }
   return attachAudit(results, attempts, errors.length ? errors.join(" | ") : undefined);
@@ -100,5 +100,5 @@ export async function assessSingleWithProviderFallback<T>(input: unknown, ml: T,
   }
   return attachAudit([{ ml, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: primaryError ?? "No AI provider API key is configured",
     geminiModels: credentials.groqApiKey ? GROQ_MODELS : GEMINI_MODELS, aiProviders: { summary: credentials.groqApiKey ? "groq" : "none", final: credentials.groqApiKey ? "groq" : "none" },
-    promptVersion: credentials.groqApiKey ? "assessment-v6-groq-primary" : PROMPT_VERSION }], attempts, primaryError)[0]!;
+    promptVersion: credentials.groqApiKey ? "assessment-v10-groq-weather-first" : PROMPT_VERSION }], attempts, primaryError)[0]!;
 }

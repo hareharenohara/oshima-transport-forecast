@@ -55,6 +55,20 @@ test("compacts repeated static knowledge before sending to Groq", () => {
   assert.equal("publicExperience" in compacted, false);
 });
 
+test("keeps detailed weather and marine signals ahead of the ML reference", () => {
+  const phases = { departure: { wind_speed_10m: 8, wind_direction_10m: 45, pressure_msl: 998 }, route: { wind_gusts_10m: 16, precipitation: 3 }, arrival: {}, change3h: {}, change6h: {} };
+  const seaPhases = { departure: {}, route: { wave_height: 2.4, wave_direction: 140, swell_wave_height: 1.7, swell_wave_direction: 150, swell_wave_period: 11 }, arrival: {}, change3h: {}, change6h: {} };
+  const compacted = compactJudgmentInput({
+    service: { id: "a" }, ml: { result: { comparison: { mean: 0.08, min: 0.04, max: 0.12, range: 0.08, agreement: "medium" } } },
+    forecasts: { weather: [{ model: "JMA MSM", phases }], marine: [{ model: "ECMWF WAM", phases: seaPhases }] }, officialCriteria: []
+  }) as Record<string, unknown>;
+  assert.equal((compacted.w as Array<{ d: Record<string, number> }>)[0]?.d.wind_direction_10m, 45);
+  assert.equal((compacted.w as Array<{ d: Record<string, number> }>)[0]?.d.pressure_msl, 998);
+  assert.equal((compacted.sea as Array<{ r: Record<string, number> }>)[0]?.r.swell_wave_direction, 150);
+  assert.deepEqual(compacted.mlReference, { mean: 0.08, min: 0.04, max: 0.12, range: 0.08, agreement: "medium" });
+  assert.ok(Object.keys(compacted).indexOf("mlReference") > Object.keys(compacted).indexOf("sea"));
+});
+
 test("splits Groq assessments into bounded groups", async () => {
   const items = Array.from({ length: 9 }, (_, index) => ({ serviceId: `s${index}`, input: { officialCriteria: [] }, ml: { index } }));
   const groups = [items.slice(0, 4), items.slice(4, 8), items.slice(8)];

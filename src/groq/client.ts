@@ -99,17 +99,17 @@ export function compactJudgmentInput(input: unknown): unknown {
   return compactNumber({
     s: source.service,
     t: source.timing,
-    ml: { mean: comparison.mean, min: comparison.min, max: comparison.max, range: comparison.range, agreement: comparison.agreement },
-    w: phaseSignals(forecasts.weather, ["wind_speed_10m", "wind_gusts_10m"]),
-    sea: phaseSignals(forecasts.marine, ["wave_height", "wave_period", "swell_wave_height", "swell_wave_period"]),
+    w: phaseSignals(forecasts.weather, ["wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "precipitation", "pressure_msl"]),
+    sea: phaseSignals(forecasts.marine, ["wave_height", "wave_direction", "wave_period", "wind_wave_height", "wind_wave_direction", "wind_wave_period", "swell_wave_height", "swell_wave_direction", "swell_wave_period"]),
     officialCriteria: selectedCriteria,
     prev: source.previousPrediction,
-    quality: source.dataQuality
+    quality: source.dataQuality,
+    mlReference: { mean: comparison.mean, min: comparison.min, max: comparison.max, range: comparison.range, agreement: comparison.agreement }
   });
 }
 
 const SUMMARY_RULES = `複数便の予報情報を整理してください。入力配列のserviceIdをservice_idへ完全一致で転記し、就航見込みは決定しないでください。入力にある数値だけを使い、出発地点・航路・大島入口、ピーク、風・波・うねりの変化、モデル一致度、前回差、欠損を単位付きで示してください。説明文、要約、要因、根拠は自然な日本語で記述し、モデル名、単位、正式な識別子を除いて英語の文章や語句を出力しないでください。各文章は80文字以内、各配列は重要な2件以内にしてください。`;
-const FINAL_RULES = `複数便を個別に判断してください。入力配列のserviceIdをservice_idへ完全一致で転記してください。ML欠航確率は過去の類似条件の傾向であり、1-MLをAIの最終就航見込みにしないでください。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはS=就航の可能性が高い、A=就航寄り、B=判断が分かれる、C=欠航寄り、D=欠航の可能性が高いです。confidence_levelは評価の信頼度で5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。公式基準、地点別予報、モデル差、予報先、前回差を別々に確認してください。入力にない数値や因果を作らないでください。official_criteria_statusは空配列にしてください（システムが入力から正確に転記します）。各文章は100文字以内、各配列は重要な2件以内にしてください。港の根拠がなければ不明、port_confidence_levelは1にしてください。港予測にも確率やパーセントを生成してはいけません。`;
+const FINAL_RULES = `複数便を個別に判断してください。入力配列のserviceIdをservice_idへ完全一致で転記してください。最初に風・波・うねりの地点別予報、公式基準との距離、時間変化、モデル差、予報先、欠損を使って暫定評価を作り、その後でmlReferenceを過去の類似条件に基づく参考情報として照合してください。MLだけを根拠に評価を決めたり、MLの大小をS〜Dへ機械的に変換したりしてはいけません。気象海象とMLが食い違う場合は気象海象を優先し、不一致をnegative_factorsまたはconfidence_reasonsに記述してください。assessmentまたはpositive_factors・negative_factorsには、入力に数値がある限り風・波・うねりの具体的な根拠を必ず含めてください。1-MLをAIの最終就航見込みにしてはいけません。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはS=就航の可能性が高い、A=就航寄り、B=判断が分かれる、C=欠航寄り、D=欠航の可能性が高いです。Sは気象海象に明確な懸念がなく複数予報モデルがおおむね一致する場合に限ってください。confidence_levelは評価の信頼度で5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。入力にない数値や因果を作らないでください。official_criteria_statusは空配列にしてください（システムが入力から正確に転記します）。各文章は100文字以内、各配列は重要な2件以内にしてください。港の根拠がなければ不明、port_confidence_levelは1にしてください。港予測にも確率やパーセントを生成してはいけません。`;
 
 const JAPANESE_OUTPUT_RULE = "assessment、summary、各要因、確信度の根拠、港予測の根拠は自然な日本語で記述し、モデル名、単位、正式な識別子を除いて英語の文章や語句を出力しないでください。";
 
@@ -147,7 +147,7 @@ export async function assessGroqBatch<T>(items: Array<{ serviceId: string; input
   return items.map((item) => ({
     ml: item.ml, forecastSummary: summaryMap.get(item.serviceId)!, ai: finalMap.get(item.serviceId)!, aiStatus: "generated" as const,
     geminiModels: { summary: GROQ_MODELS.summary, final: GROQ_MODELS.final },
-    aiProviders: { summary: "groq", final: "groq" }, promptVersion: "assessment-v9-groq-sabcd"
+    aiProviders: { summary: "groq", final: "groq" }, promptVersion: "assessment-v10-groq-weather-first"
   }));
 }
 

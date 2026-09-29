@@ -3,7 +3,7 @@ export const GEMINI_MODEL_CHAINS = {
   summary: ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
   final: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 } as const;
-export const PROMPT_VERSION = "assessment-v9-sabcd";
+export const PROMPT_VERSION = "assessment-v10-weather-first";
 
 export interface ForecastSummary { risk_level: "low" | "medium" | "high"; model_agreement: "high" | "medium" | "low"; key_signals: string[]; rough_conditions: string[]; peak_conditions: string[]; trends: string[]; previous_changes: string[]; missing_data: string[]; numerical_summary: string }
 export interface OfficialCriterionStatus { criterion: string; forecast: number; threshold: number; unit: string; status: "below" | "near" | "reached" }
@@ -113,10 +113,10 @@ export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string;
   return generateStructured(model, `${FINAL_RULES}\n複数便を航路・船種・時間帯ごとに個別判断し、各service_idを保持してください。\n3.5整理結果:\n${JSON.stringify(summaries)}\n判断材料:\n${JSON.stringify(inputs)}`, batchFinalSchema, (value) => validateBatch(value, (item) => validateAssessment(item)).map((row) => ({ ...row, value: validateGrounding(row.value, inputMap.get(row.serviceId)) })), apiKey, fetchFn, false);
 }
 
-const FINAL_RULES = `伊豆大島航路の最終総合判断を行ってください。判断順序は、欠損、便・船種・航路・時刻、東海汽船公式基準、ML欠航リスク、出発港、航路、入港地点、3/6時間変化、中村氏の公開経験則、複数モデル差、前回差、就航見込み、確信度、港予測、根拠です。
+const FINAL_RULES = `伊豆大島航路の最終総合判断を行ってください。判断順序は、欠損、便・船種・航路・時刻、出発港・航路・入港地点の風・波・うねり、3/6時間変化、東海汽船公式基準、複数モデル差、予報先、前回差、暫定評価、ML参考値との照合、最終評価、確信度、港予測、根拠です。
 説明文、assessment、summary、各要因、確信度の根拠、港予測の根拠は自然な日本語で記述してください。モデル名、単位、正式な識別子を除き、英語の文章や語句を出力しないでください。
-公式基準・中村氏公開経験則・過去実績ML・現在の複数予報を別レイヤーのまま確認してから総合してください。ML cancellation_probability は過去の類似条件における気象欠航傾向であり、1-MLやモデル平均をそのまま最終就航見込みにしてはいけません。モデル差を平均で消してはいけません。
-入力にない数値、因果、経験則を作らないでください。公式基準と中村氏目安を混同せず、ジェットと大型船、東京航路と熱海等を同じ閾値で扱わないでください。公式基準到達予報は非常に強い欠航材料ですが、未来予報だけで評価を決めないでください。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはS=就航の可能性が高い、A=就航寄り、B=判断が分かれる、C=欠航寄り、D=欠航の可能性が高いです。confidence_levelはその評価を現時点で信頼できる度合いで、5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。予報先が遠い、モデル不一致、欠損、前回急変、基準ぎりぎりではconfidence_levelを下げてください。
+公式基準・現在の複数予報・過去実績MLを別レイヤーのまま確認してから総合してください。先に現在の気象海象だけで暫定評価を作り、ML cancellation_probabilityは最後に過去の類似条件における参考値として照合してください。MLだけを根拠に評価を決めたり、MLの大小をS〜Dへ機械的に変換したりしてはいけません。気象海象とMLが食い違う場合は気象海象を優先し、不一致をnegative_factorsまたはconfidence_reasonsに記述してください。assessmentまたはpositive_factors・negative_factorsには、入力に数値がある限り風・波・うねりの具体的な根拠を必ず含めてください。1-MLやモデル平均をそのまま最終就航見込みにしてはいけません。モデル差を平均で消してはいけません。
+入力にない数値、因果、経験則を作らないでください。ジェットと大型船、東京航路と熱海等を同じ閾値で扱わないでください。公式基準到達予報は非常に強い欠航材料ですが、未来予報だけで評価を決めないでください。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはS=就航の可能性が高い、A=就航寄り、B=判断が分かれる、C=欠航寄り、D=欠航の可能性が高いです。Sは気象海象に明確な懸念がなく複数予報モデルがおおむね一致する場合に限ってください。confidence_levelはその評価を現時点で信頼できる度合いで、5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。予報先が遠い、モデル不一致、欠損、前回急変、基準ぎりぎりではconfidence_levelを下げてください。
 official_criteria_statusには入力中のofficialCriteriaから判断に実際に使った項目だけを、forecast/threshold/unitを変更せず転記してください。入力のnear_internalは内部距離であり、公式警戒基準とは表現せずstatusはnearとしてください。港を根拠付きで判断できない場合は不明、port_confidence_levelは1、port_reasonsに不足情報を書いてください。港予測にも確率やパーセントを生成してはいけません。根拠文には可能な限りモデル名、地点・段階、値、単位、基準値を含めてください。`;
 
 function finalPrompt(input: unknown, summary: ForecastSummary): string {
