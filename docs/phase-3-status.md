@@ -4,6 +4,8 @@ The local D1 and Cron foundation is implemented. Migration `0001_phase3.sql` cre
 
 The scheduled handler runs every two hours. A unique UTC two-hour `run_slot` prevents duplicate execution. It selects only future services without confirmed actual results, runs the Phase 2 pipeline, stores every valid per-model ML value, preserves Gemini fallback status, and records service-level failures without stopping the remaining services.
 
+ML runs for every target on every two-hour invocation. Gemini has a separate free-tier budget: eligible six-hour slots process at most the four nearest departures, with pacing between services. Each run records the eligible/deferred counts in `run_logs` as `gemini_budget`, so quota behavior is auditable without logging credentials.
+
 Each run also reads the official Tokai Kisen same-day Oshima operation page and stores matched service statuses separately from predictions and confirmed actual results. Failure of the official page or parser is logged as a warning and does not stop weather prediction. Official wording and source update time are preserved; elapsed schedule time is never used to invent a departure result.
 
 Read APIs expose day summaries, latest service state with changes from the prior prediction, and complete prediction history. Local integration on 2026-09-28 verified one service, two ML model combinations, a generated Gemini assessment, and duplicate-run suppression.

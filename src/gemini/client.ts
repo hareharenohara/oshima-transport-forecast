@@ -34,8 +34,16 @@ async function generateStructured<T>(model: string, prompt: string, schema: obje
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const init: RequestInit = { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.1 } }) };
   let response = await fetchFn(url, init);
-  if (response.status === 429 || response.status >= 500) response = await fetchFn(url, init);
-  if (!response.ok) throw new Error(`Gemini ${model} HTTP ${response.status}`);
+  if (response.status === 429 || response.status >= 500) {
+    const retryAfter = Number(response.headers.get("retry-after"));
+    const delayMs = Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter * 1000 : response.status === 429 ? 5_000 : 1_000;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    response = await fetchFn(url, init);
+  }
+  if (!response.ok) {
+    const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 500);
+    throw new Error(`Gemini ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+  }
   const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error(`Gemini ${model} returned no structured output`);

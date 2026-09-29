@@ -6,9 +6,9 @@ import type { ServiceInput } from "../types.js";
 
 const MODEL_BUNDLE: ModelBundle = modelBundleJson;
 
-export async function assessService(service: ServiceInput, apiKey: string | undefined, fetchFn: typeof fetch = fetch, sources?: MultiModelSources) {
+export async function assessService(service: ServiceInput, apiKey: string | undefined, fetchFn: typeof fetch = fetch, sources?: MultiModelSources, unavailableReason = "GEMINI_API_KEY is not configured") {
   const multiModel = await runMultiModelPredictions(service, MODEL_BUNDLE, fetchFn, sources);
-  if (!apiKey) return { ml: multiModel, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: "GEMINI_API_KEY is not configured", geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
+  if (!apiKey) return { ml: multiModel, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: unavailableReason, geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
   return assessWithFallback({ service, comparison: multiModel.comparison, failures: multiModel.failures }, multiModel, apiKey, fetchFn);
 }
 
