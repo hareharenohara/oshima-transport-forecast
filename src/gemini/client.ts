@@ -46,7 +46,7 @@ export function validateAssessment(value: unknown): FinalAssessment {
   return { operation_probability: v.operation_probability as number, confidence: v.confidence as number, assessment: v.assessment as string, positive_factors: stringArray(v.positive_factors, "positive_factors"), negative_factors: stringArray(v.negative_factors, "negative_factors"), confidence_reasons: stringArray(v.confidence_reasons, "confidence_reasons"), official_criteria_status, port_prediction: v.port_prediction as FinalAssessment["port_prediction"], port_confidence: v.port_confidence as number, port_reasons: stringArray(v.port_reasons, "port_reasons"), summary: v.summary as string };
 }
 
-function validateGrounding(assessment: FinalAssessment, input: unknown): FinalAssessment {
+export function validateGrounding(assessment: FinalAssessment, input: unknown): FinalAssessment {
   const source = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>).officialCriteria : undefined;
   if (!Array.isArray(source)) return assessment;
   const available = source.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).forecast === "number"));

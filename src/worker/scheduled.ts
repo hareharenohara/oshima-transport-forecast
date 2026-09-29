@@ -7,7 +7,7 @@ import { syncSchedule } from "../schedule/sync.js";
 import { acquireRun, finishRun, logRun, readPreviousPredictionContexts, saveAssessment, saveForecastSeries, saveOfficialStatuses, upcomingServices } from "../storage/d1.js";
 import { notifyPredictionChanges } from "../notifications/push.js";
 
-export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
+export interface ScheduledEnv { DB: D1Database; GROQ_API_KEY?: string; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
 
 export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fetchFn: typeof fetch = fetch): Promise<{ status: string; runId?: string; targetCount?: number; successCount?: number; errorCount?: number }> {
   const startedAt = Date.now();
@@ -39,8 +39,9 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
     targetCount = services.length;
     const sources = services.length > 0 ? await fetchMultiModelSources(fetchFn) : undefined;
     const previous = await readPreviousPredictionContexts(env.DB, services.map((service) => service.serviceId));
-    const batch = await assessServicesBatch(services, env.GEMINI_API_KEY, fetchFn, sources, previous);
-    await logRun(env.DB, run.id, "info", "gemini_batch", undefined, `${batch.assessed.length} services, ${env.GEMINI_API_KEY && batch.assessed.length ? "2 calls attempted" : "0 calls"}`);
+    const batch = await assessServicesBatch(services, { groqApiKey: env.GROQ_API_KEY, geminiApiKey: env.GEMINI_API_KEY }, fetchFn, sources, previous);
+    const audit = batch.assessed[0]?.result.aiAudit;
+    await logRun(env.DB, run.id, "info", "ai_batch", undefined, JSON.stringify({ services: batch.assessed.length, attempts: audit?.attempts ?? [], primaryError: audit?.primaryError }));
     for (const failure of batch.failures) {
       errorCount++;
       await logRun(env.DB, run.id, "error", "service_prediction_failed", failure.service.serviceId, failure.error instanceof Error ? failure.error.message : String(failure.error));
@@ -53,7 +54,7 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
         const pushCount = await notifyPredictionChanges(env, service, assessment, fetchFn);
         if (pushCount > 0) await logRun(env.DB, run.id, "info", "push_sent", service.serviceId, `${pushCount} notifications`);
         successCount++;
-        if (env.GEMINI_API_KEY && assessment.aiStatus === "unavailable") await logRun(env.DB, run.id, "warn", "gemini_unavailable", service.serviceId, assessment.error);
+        if ((env.GROQ_API_KEY || env.GEMINI_API_KEY) && assessment.aiStatus === "unavailable") await logRun(env.DB, run.id, "warn", "ai_unavailable", service.serviceId, assessment.error);
       } catch (error) {
         errorCount++;
         await logRun(env.DB, run.id, "error", "service_prediction_failed", service.serviceId, error instanceof Error ? error.message : String(error));

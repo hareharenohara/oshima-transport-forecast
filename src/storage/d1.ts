@@ -19,7 +19,8 @@ export interface StoredServiceRow {
 export function twoHourRunSlot(date: Date): string {
   const slot = new Date(date);
   slot.setUTCMinutes(0, 0, 0);
-  slot.setUTCHours(Math.floor(slot.getUTCHours() / 2) * 2);
+  const oddUtcHour = Math.floor((slot.getUTCHours() - 1) / 2) * 2 + 1;
+  slot.setUTCHours(oddUtcHour);
   return slot.toISOString();
 }
 
@@ -72,6 +73,7 @@ interface PersistableAssessment {
   aiStatus: "generated" | "unavailable";
   error?: string;
   geminiModels?: { summary: string; final: string };
+  aiProviders?: { summary: string; final: string };
   promptVersion?: string;
 }
 
@@ -87,14 +89,15 @@ export async function saveAssessment(db: D1Database, runId: string, serviceId: s
   statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, operation_probability,
     confidence, assessment, positive_factors_json, negative_factors_json, confidence_reasons_json, port_prediction,
     port_confidence, port_reasons_json, official_criteria_status_json, summary, forecast_summary_json, ai_status,
-    error_message, gemini_model, gemini_summary_model, prompt_version, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+    error_message, gemini_model, gemini_summary_model, ai_provider, ai_summary_provider, prompt_version, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
       crypto.randomUUID(), runId, serviceId, ai?.operation_probability ?? null, ai?.confidence ?? null,
       ai?.assessment ?? null, JSON.stringify(ai?.positive_factors ?? []), JSON.stringify(ai?.negative_factors ?? []),
       JSON.stringify(ai?.confidence_reasons ?? []), ai?.port_prediction ?? null, ai?.port_confidence ?? null,
       JSON.stringify(ai?.port_reasons ?? []), JSON.stringify(ai?.official_criteria_status ?? []), ai?.summary ?? null,
       result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus,
-      result.error ?? null, result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null, result.promptVersion ?? null, createdAt
+      result.error ?? null, result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null,
+      result.aiProviders?.final ?? null, result.aiProviders?.summary ?? null, result.promptVersion ?? null, createdAt
     ));
   await db.batch(statements);
 }
@@ -142,14 +145,15 @@ export async function updateAiBackfill(db: D1Database, runId: string, serviceId:
   await db.prepare(`UPDATE ai_predictions SET operation_probability=?, confidence=?, assessment=?,
     positive_factors_json=?, negative_factors_json=?, confidence_reasons_json=?, port_prediction=?, summary=?,
     port_confidence=?, port_reasons_json=?, official_criteria_status_json=?, forecast_summary_json=?, ai_status=?,
-    error_message=?, gemini_model=?, gemini_summary_model=?, prompt_version=?
+    error_message=?, gemini_model=?, gemini_summary_model=?, ai_provider=?, ai_summary_provider=?, prompt_version=?
     WHERE forecast_run_id=? AND service_id=?`).bind(
       result.ai?.operation_probability ?? null, result.ai?.confidence ?? null, result.ai?.assessment ?? null,
       JSON.stringify(result.ai?.positive_factors ?? []), JSON.stringify(result.ai?.negative_factors ?? []),
       JSON.stringify(result.ai?.confidence_reasons ?? []), result.ai?.port_prediction ?? null, result.ai?.summary ?? null,
       result.ai?.port_confidence ?? null, JSON.stringify(result.ai?.port_reasons ?? []),
       JSON.stringify(result.ai?.official_criteria_status ?? []), result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus, result.error ?? null,
-      result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null, result.promptVersion ?? null, runId, serviceId
+      result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null,
+      result.aiProviders?.final ?? null, result.aiProviders?.summary ?? null, result.promptVersion ?? null, runId, serviceId
     ).run();
 }
 

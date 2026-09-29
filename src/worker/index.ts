@@ -15,7 +15,7 @@ const MODEL_BUNDLE: EnsembleModelBundle = modelBundleJson as EnsembleModelBundle
 const MAX_BODY_BYTES = 16 * 1024;
 const SHIP_TYPES = new Set<ShipType>(["jet", "large"]);
 const DIRECTIONS = new Set<Direction>(["from_oshima", "to_oshima"]);
-export interface WorkerEnv { DB?: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
+export interface WorkerEnv { DB?: D1Database; GROQ_API_KEY?: string; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
 
 class RequestError extends Error {
   constructor(message: string, readonly status = 400, readonly code = "INVALID_REQUEST") {
@@ -160,7 +160,7 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   try {
     const service = parseService(await readJsonWithLimit(request));
     if (url.pathname === "/api/assess") {
-      const assessment = await assessService(service, env.GEMINI_API_KEY, fetchFn);
+      const assessment = await assessService(service, { groqApiKey: env.GROQ_API_KEY, geminiApiKey: env.GEMINI_API_KEY }, fetchFn);
       console.log(JSON.stringify({ event: "assessment_completed", requestId, serviceId: service.serviceId, aiStatus: assessment.aiStatus, modelCount: assessment.ml.predictions.length }));
       return json({ serviceId: service.serviceId, ...assessment, requestId });
     }
