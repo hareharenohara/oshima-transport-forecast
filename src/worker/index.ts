@@ -7,7 +7,7 @@ import { assessService } from "../pipeline/assessment.js";
 import { readDays, readHistory, readService } from "../storage/d1.js";
 import type { Direction, ServiceInput, ShipType } from "../types.js";
 import { runScheduled } from "./scheduled.js";
-import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST } from "../ui/assets.js";
+import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS } from "../ui/assets.js";
 
 const MODEL_BUNDLE: ModelBundle = modelBundleJson;
 const MAX_BODY_BYTES = 16 * 1024;
@@ -95,8 +95,8 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML, "text/html; charset=utf-8", "public, max-age=60");
-  if (request.method === "GET" && url.pathname === "/app.css") return asset(APP_CSS, "text/css; charset=utf-8");
-  if (request.method === "GET" && url.pathname === "/app.js") return asset(APP_JS, "text/javascript; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}`, "text/css; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`, "text/javascript; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/favicon.svg") return asset(FAVICON_SVG, "image/svg+xml; charset=utf-8", "public, max-age=86400");
   if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/health") {

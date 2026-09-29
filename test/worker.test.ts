@@ -18,6 +18,17 @@ test("worker serves the mobile forecast UI with security headers", async () => {
   assert.match(await response.text(), /島ゆき予報/);
 });
 
+test("worker UI includes the completed Phase 4 trend and theme controls", async () => {
+  const html = await (await handleRequest(new Request("https://example.test/"))).text();
+  const css = await (await handleRequest(new Request("https://example.test/app.css"))).text();
+  const js = await (await handleRequest(new Request("https://example.test/app.js"))).text();
+  assert.match(html, /id="theme"/);
+  assert.match(css, /data-theme="dark"/);
+  assert.match(js, /historyChart/);
+  assert.match(js, /localStorage\.setItem\('theme'/);
+  assert.match(js, /prefers-color-scheme: dark/);
+});
+
 test("worker rejects invalid service input before external API calls", async () => {
   let called = false;
   const response = await handleRequest(new Request("https://example.test/api/predict", {
