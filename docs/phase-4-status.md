@@ -1,6 +1,6 @@
 # Phase 4 status
 
-The mobile-first preview UI, “島ゆき予報”, is served directly by the Worker root URL. It provides the three required levels: day summaries, expandable service lists, and a service detail sheet.
+The mobile-first preview UI, “大島航路予報”, is served directly by the Worker root URL. It provides the three required levels: day summaries, expandable service lists, and a service detail sheet.
 
 Day cards show average and minimum operation likelihood, service count, low-likelihood count, trend text, and the predicted port when available. Service cards show route, time, vessel type, voyage number, likelihood, and whether the value is the final AI assessment or an ML provisional value.
 

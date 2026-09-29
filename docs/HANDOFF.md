@@ -71,7 +71,7 @@ pnpm exec wrangler secret put GEMINI_API_KEY --env preview
 
 ```powershell
 pnpm db:migrate:local
-pnpm worker:dev -- --env preview
+pnpm worker:dev
 ```
 
 ローカルD1は `.wrangler/` に作成され、Git管理されません。別端末のローカルD1が空なのは正常です。リモートpreview D1には便・予測履歴があります。

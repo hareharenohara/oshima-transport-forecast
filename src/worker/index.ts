@@ -7,13 +7,14 @@ import { assessService } from "../pipeline/assessment.js";
 import { readDays, readHistory, readService } from "../storage/d1.js";
 import type { Direction, ServiceInput, ShipType } from "../types.js";
 import { runScheduled } from "./scheduled.js";
-import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS } from "../ui/assets.js";
+import { parsePreferences, parseSubscription, removeSubscription, saveSubscription } from "../notifications/push.js";
+import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER } from "../ui/assets.js";
 
 const MODEL_BUNDLE: ModelBundle = modelBundleJson;
 const MAX_BODY_BYTES = 16 * 1024;
 const SHIP_TYPES = new Set<ShipType>(["jet", "large"]);
 const DIRECTIONS = new Set<Direction>(["from_oshima", "to_oshima"]);
-export interface WorkerEnv { DB?: D1Database; GEMINI_API_KEY?: string }
+export interface WorkerEnv { DB?: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
 
 class RequestError extends Error {
   constructor(message: string, readonly status = 400, readonly code = "INVALID_REQUEST") {
@@ -95,12 +96,33 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML, "text/html; charset=utf-8", "public, max-age=60");
-  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}`, "text/css; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}`, "text/css; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`, "text/javascript; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS, "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(PWA_SETTINGS_JS, "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v2").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js'"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/favicon.svg") return asset(FAVICON_SVG, "image/svg+xml; charset=utf-8", "public, max-age=86400");
   if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/health") {
     return json({ status: "ok", modelVersion: MODEL_BUNDLE.schema_version, featuresVersion: "v1-127" });
+  }
+  if (request.method === "GET" && url.pathname === "/api/push/config") return json({ publicKey: env.VAPID_PUBLIC_KEY ?? null });
+  if (url.pathname === "/api/push/subscriptions") {
+    if (!env.DB) return json({ error: { code: "STORAGE_UNAVAILABLE", message: "Prediction storage is not configured" }, requestId }, 503);
+    if (request.method === "POST") {
+      try {
+        const body = await readJsonWithLimit(request) as Record<string, unknown>;
+        const id = await saveSubscription(env.DB, parseSubscription(body.subscription), parsePreferences(body.preferences));
+        return json({ subscriptionId: id }, 201);
+      } catch (error) { return json({ error: { code: "INVALID_REQUEST", message: error instanceof Error ? error.message : "Invalid subscription" }, requestId }, 400); }
+    }
+    if (request.method === "DELETE") {
+      const id = url.searchParams.get("id");
+      if (!id) return json({ error: { code: "INVALID_REQUEST", message: "id is required" }, requestId }, 400);
+      await removeSubscription(env.DB, id);
+      return new Response(null, { status: 204 });
+    }
+    return json({ error: { code: "METHOD_NOT_ALLOWED", message: "Use POST or DELETE" }, requestId }, 405);
   }
   if (request.method === "GET" && url.pathname === "/api/days") {
     if (!env.DB) return json({ error: { code: "STORAGE_UNAVAILABLE", message: "Prediction storage is not configured" }, requestId }, 503);
@@ -157,6 +179,6 @@ export default {
   },
   scheduled(controller: ScheduledController, env: WorkerEnv, ctx: ExecutionContext): void {
     if (!env.DB) throw new Error("DB binding is required for scheduled runs");
-    ctx.waitUntil(runScheduled({ DB: env.DB, GEMINI_API_KEY: env.GEMINI_API_KEY }, controller.scheduledTime));
+    ctx.waitUntil(runScheduled(env as WorkerEnv & { DB: D1Database }, controller.scheduledTime));
   }
 } satisfies ExportedHandler<WorkerEnv>;

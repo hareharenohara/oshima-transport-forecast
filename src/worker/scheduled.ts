@@ -3,8 +3,9 @@ import { fetchMultiModelSources } from "../forecast/multi-model.js";
 import { BundledOfficialScheduleProvider } from "../schedule/bundled.js";
 import { syncSchedule } from "../schedule/sync.js";
 import { acquireRun, finishRun, logRun, saveAssessment, upcomingServices } from "../storage/d1.js";
+import { notifyPredictionChanges } from "../notifications/push.js";
 
-export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string }
+export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
 
 export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fetchFn: typeof fetch = fetch): Promise<{ status: string; runId?: string; targetCount?: number; successCount?: number; errorCount?: number }> {
   const startedAt = Date.now();
@@ -32,6 +33,8 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
       try {
         const assessment = await assessService(service, env.GEMINI_API_KEY, fetchFn, sources);
         await saveAssessment(env.DB, run.id, service.serviceId, assessment, new Date().toISOString());
+        const pushCount = await notifyPredictionChanges(env, service, assessment, fetchFn);
+        if (pushCount > 0) await logRun(env.DB, run.id, "info", "push_sent", service.serviceId, `${pushCount} notifications`);
         successCount++;
         if (assessment.aiStatus === "unavailable") await logRun(env.DB, run.id, "warn", "gemini_unavailable", service.serviceId, assessment.error);
       } catch (error) {

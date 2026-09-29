@@ -39,3 +39,11 @@ If `GEMINI_API_KEY` is missing or either Gemini stage fails, the request still s
 - `GET /api/services/:id/history` returns append-only AI and per-model ML history, newest first.
 
 These endpoints only read D1. Prediction generation is performed by the internal two-hour Cron handler.
+
+## Push notifications
+
+- `GET /api/push/config` returns only the public VAPID key, or `null` when Push is not configured.
+- `POST /api/push/subscriptions` stores a browser Push subscription and its notification preferences.
+- `DELETE /api/push/subscriptions?id=...` removes the caller's stored subscription identifier.
+
+Push endpoints and encryption keys are never returned by stored prediction APIs. The subscription identifier returned at enrollment is retained by the browser for later removal.

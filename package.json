@@ -10,7 +10,7 @@
     "predict": "tsc && node dist/src/cli.js",
     "predict:multi": "tsc && node dist/src/multi-cli.js",
     "worker:types": "wrangler types worker-configuration.d.ts",
-    "worker:dev": "wrangler dev --local",
+    "worker:dev": "wrangler dev --local --env preview",
     "worker:check": "wrangler deploy --dry-run --env preview --outdir dist/worker",
     "db:migrate:local": "wrangler d1 migrations apply tokai-kisen-forecast-preview --local --env preview"
   },

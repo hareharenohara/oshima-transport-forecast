@@ -8,7 +8,7 @@ Preview Worker: `https://tokai-kisen-forecast-preview.hareharenohara.workers.dev
 
 Cronは公式時刻表から確認済みの基幹便をD1へ同期してから、4日先までの未出航便を予測します。同一Cron内のOpen-Meteo予報は全便で共有されます。
 
-ルートURLではスマホ向けUI「島ゆき予報」を配信します。日別サマリー、便一覧、便詳細、ML暫定値、確信度、モデル別欠航リスク、予測推移、前回比較を表示します。ライト/ダーク表示はOS設定に追従し、手動で選んだ設定も保存します。
+ルートURLではスマホ向けUI「大島航路予報」を配信します。日別サマリー、便一覧、便詳細、ML暫定値、確信度、モデル別欠航リスク、予測推移、前回比較を表示します。ライト/ダーク表示はOS設定に追従し、手動で選んだ設定も保存します。PWAとしてインストールでき、最後に取得した予測のオフライン表示とログイン不要のPush購読に対応します。
 
 ## 現在の機能
 
@@ -33,7 +33,7 @@ Worker APIのローカル起動:
 ```powershell
 pnpm worker:types
 pnpm db:migrate:local
-pnpm worker:dev -- --env preview
+pnpm worker:dev
 ```
 
 別のターミナルから `GET http://127.0.0.1:8787/health`、`POST http://127.0.0.1:8787/api/predict`、または `POST http://127.0.0.1:8787/api/assess` を呼び出します。保存済み結果は `GET /api/days`、`GET /api/services/:id`、`GET /api/services/:id/history` で取得できます。`/api/assess` は複数モデル比較、Gemini 3.5 Flash-Liteによる整理、Gemini 3.8 Flashによる最終評価を順に実行します。Geminiが失敗した場合もML比較結果を返します。リクエスト仕様は [API](docs/api.md) にあります。
@@ -67,6 +67,8 @@ python scripts/retrain_model_127.py
 - `test`: unit/integration相当のローカルテスト
 
 APIキーはローカルの `.dev.vars.preview` またはCloudflare Secretだけに保存します。
+
+Push通知を有効にする環境では、VAPID鍵ペアを生成し、`VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`、`VAPID_SUBJECT` をSecretとして設定します。秘密鍵をGitへ保存しないでください。
 
 ## Gemini APIキー
 

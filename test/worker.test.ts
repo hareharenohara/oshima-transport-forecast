@@ -15,7 +15,7 @@ test("worker serves the mobile forecast UI with security headers", async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /text\/html/);
   assert.match(response.headers.get("content-security-policy") ?? "", /script-src 'self'/);
-  assert.match(await response.text(), /島ゆき予報/);
+  assert.match(await response.text(), /大島航路予報/);
 });
 
 test("worker UI includes the completed Phase 4 trend and theme controls", async () => {
@@ -27,6 +27,19 @@ test("worker UI includes the completed Phase 4 trend and theme controls", async 
   assert.match(js, /historyChart/);
   assert.match(js, /localStorage\.setItem\('theme'/);
   assert.match(js, /prefers-color-scheme: dark/);
+});
+
+test("worker serves installable Phase 5 PWA assets", async () => {
+  const html = await (await handleRequest(new Request("https://example.test/"))).text();
+  const manifest = await (await handleRequest(new Request("https://example.test/manifest.webmanifest"))).json() as { name: string; icons: unknown[] };
+  const serviceWorker = await (await handleRequest(new Request("https://example.test/sw.js"))).text();
+  assert.match(html, /大島航路予報/);
+  assert.match(html, /\/pwa\.js/);
+  assert.match(html, /notification-form/);
+  assert.equal(manifest.name, "大島航路予報");
+  assert.ok(manifest.icons.length > 0);
+  assert.match(serviceWorker, /showNotification/);
+  assert.match(serviceWorker, /x-offline-stale/);
 });
 
 test("worker rejects invalid service input before external API calls", async () => {
