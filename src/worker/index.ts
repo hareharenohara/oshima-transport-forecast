@@ -98,10 +98,17 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML, "text/html; charset=utf-8", "public, max-age=60");
   if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}`, "text/css; charset=utf-8");
-  if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`, "text/javascript; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`
+    .replace("if(row.operation_probability!=null)return Number(row.operation_probability);", "")
+    .replaceAll("予測推移", "ML参考値の推移")
+    .replace("#detail .detail-grid", "#detail .ml-reference"), "text/javascript; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(PWA_SETTINGS_JS, "text/javascript; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/phase6.js") return asset(PHASE6_JS.replace("panel.textContent='就航見込みの前回差は算出できません · 港予測 変更なし'", "panel.textContent=panel.textContent.replace('nullポイント','就航見込みの前回差は算出できません')"), "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/phase6.js") return asset(PHASE6_JS
+    .replace("if(row.operation_probability!=null)return Number(row.operation_probability);", "")
+    .replaceAll("予測推移", "ML参考値の推移")
+    .replace("#detail .detail-grid", "#detail .ml-reference")
+    .replace("panel.textContent='就航見込みの前回差は算出できません · 港予測 変更なし'", "panel.textContent=panel.textContent.replace('nullポイント','就航見込みの前回差は算出できません')"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/weather-charts.js") return asset(WEATHER_CHARTS_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/official-status.js") return asset(OFFICIAL_STATUS_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v6").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js','/official-status.js'"), "text/javascript; charset=utf-8", "no-cache");

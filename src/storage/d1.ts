@@ -52,15 +52,15 @@ export async function upcomingServices(db: D1Database, now: Date, horizonDays = 
 export async function readPreviousPredictionContexts(db: D1Database, serviceIds: string[]): Promise<Map<string, PreviousPredictionContext>> {
   if (!serviceIds.length) return new Map();
   const placeholders = serviceIds.map(() => "?").join(",");
-  const rows = await db.prepare(`SELECT a.service_id, a.operation_probability, a.confidence, a.port_prediction, a.created_at
+  const rows = await db.prepare(`SELECT a.service_id, a.evaluation_grade, a.confidence_level, a.port_prediction, a.created_at
     FROM ai_predictions a WHERE a.service_id IN (${placeholders}) AND a.ai_status='generated'
       AND a.created_at=(SELECT MAX(previous.created_at) FROM ai_predictions previous
         WHERE previous.service_id=a.service_id AND previous.ai_status='generated')`).bind(...serviceIds).all<{
-          service_id: string; operation_probability: number | null; confidence: number | null; port_prediction: string | null; created_at: string;
+          service_id: string; evaluation_grade: string | null; confidence_level: number | null; port_prediction: string | null; created_at: string;
         }>();
   return new Map(rows.results.map((row) => [row.service_id, {
-    operationProbability: row.operation_probability,
-    confidence: row.confidence,
+    evaluationGrade: row.evaluation_grade,
+    confidenceLevel: row.confidence_level,
     portPrediction: row.port_prediction,
     createdAt: row.created_at
   }]));
@@ -86,14 +86,14 @@ export async function saveAssessment(db: D1Database, runId: string, serviceId: s
       prediction.weatherModel, prediction.marineModel, createdAt)
   );
   const ai = result.ai;
-  statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, operation_probability,
-    confidence, assessment, positive_factors_json, negative_factors_json, confidence_reasons_json, port_prediction,
-    port_confidence, port_reasons_json, official_criteria_status_json, summary, forecast_summary_json, ai_status,
+  statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, evaluation_grade,
+    confidence_level, assessment, positive_factors_json, negative_factors_json, confidence_reasons_json, port_prediction,
+    port_confidence_level, port_reasons_json, official_criteria_status_json, summary, forecast_summary_json, ai_status,
     error_message, gemini_model, gemini_summary_model, ai_provider, ai_summary_provider, prompt_version, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
-      crypto.randomUUID(), runId, serviceId, ai?.operation_probability ?? null, ai?.confidence ?? null,
+      crypto.randomUUID(), runId, serviceId, ai?.evaluation_grade ?? null, ai?.confidence_level ?? null,
       ai?.assessment ?? null, JSON.stringify(ai?.positive_factors ?? []), JSON.stringify(ai?.negative_factors ?? []),
-      JSON.stringify(ai?.confidence_reasons ?? []), ai?.port_prediction ?? null, ai?.port_confidence ?? null,
+      JSON.stringify(ai?.confidence_reasons ?? []), ai?.port_prediction ?? null, ai?.port_confidence_level ?? null,
       JSON.stringify(ai?.port_reasons ?? []), JSON.stringify(ai?.official_criteria_status ?? []), ai?.summary ?? null,
       result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus,
       result.error ?? null, result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null,
@@ -142,15 +142,15 @@ export async function readLatestAiBackfill(db: D1Database, retryRunId?: string):
 }
 
 export async function updateAiBackfill(db: D1Database, runId: string, serviceId: string, result: PersistableAssessment): Promise<void> {
-  await db.prepare(`UPDATE ai_predictions SET operation_probability=?, confidence=?, assessment=?,
+  await db.prepare(`UPDATE ai_predictions SET evaluation_grade=?, confidence_level=?, assessment=?,
     positive_factors_json=?, negative_factors_json=?, confidence_reasons_json=?, port_prediction=?, summary=?,
-    port_confidence=?, port_reasons_json=?, official_criteria_status_json=?, forecast_summary_json=?, ai_status=?,
+    port_confidence_level=?, port_reasons_json=?, official_criteria_status_json=?, forecast_summary_json=?, ai_status=?,
     error_message=?, gemini_model=?, gemini_summary_model=?, ai_provider=?, ai_summary_provider=?, prompt_version=?
     WHERE forecast_run_id=? AND service_id=?`).bind(
-      result.ai?.operation_probability ?? null, result.ai?.confidence ?? null, result.ai?.assessment ?? null,
+      result.ai?.evaluation_grade ?? null, result.ai?.confidence_level ?? null, result.ai?.assessment ?? null,
       JSON.stringify(result.ai?.positive_factors ?? []), JSON.stringify(result.ai?.negative_factors ?? []),
       JSON.stringify(result.ai?.confidence_reasons ?? []), result.ai?.port_prediction ?? null, result.ai?.summary ?? null,
-      result.ai?.port_confidence ?? null, JSON.stringify(result.ai?.port_reasons ?? []),
+      result.ai?.port_confidence_level ?? null, JSON.stringify(result.ai?.port_reasons ?? []),
       JSON.stringify(result.ai?.official_criteria_status ?? []), result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus, result.error ?? null,
       result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null,
       result.aiProviders?.final ?? null, result.aiProviders?.summary ?? null, result.promptVersion ?? null, runId, serviceId
@@ -195,11 +195,11 @@ interface PredictionViewRow {
   destination: string;
   scheduled_departure: string;
   scheduled_arrival: string;
-  operation_probability: number | null;
-  confidence: number | null;
+  evaluation_grade: string | null;
+  confidence_level: number | null;
   assessment: string | null;
   port_prediction: string | null;
-  port_confidence: number | null;
+  port_confidence_level: number | null;
   port_reasons_json: string | null;
   official_criteria_status_json: string | null;
   summary: string | null;
@@ -214,8 +214,8 @@ interface PredictionViewRow {
 }
 
 const LATEST_PREDICTION_SELECT = `SELECT s.id AS service_id, s.service_date, s.service_number, s.ship_type,
-  s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.operation_probability, a.confidence,
-  a.assessment, a.port_prediction, a.port_confidence, a.port_reasons_json, a.official_criteria_status_json,
+  s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.evaluation_grade, a.confidence_level,
+  a.assessment, a.port_prediction, a.port_confidence_level, a.port_reasons_json, a.official_criteria_status_json,
   a.summary, a.ai_status, a.created_at AS prediction_created_at,
   os.status AS official_status, os.port AS official_port, os.note AS official_note,
   os.source_updated_at AS official_source_updated_at, os.official_source,
@@ -238,9 +238,9 @@ export async function readDays(db: D1Database, fromDate: string, days = 5): Prom
 export async function readService(db: D1Database, serviceId: string): Promise<unknown | null> {
   const service = await db.prepare(`${LATEST_PREDICTION_SELECT} WHERE s.id = ?`).bind(serviceId).first<PredictionViewRow>();
   if (!service) return null;
-  const predictions = await db.prepare(`SELECT operation_probability, confidence, port_prediction, created_at
+  const predictions = await db.prepare(`SELECT evaluation_grade, confidence_level, port_prediction, created_at
     FROM ai_predictions WHERE service_id = ? ORDER BY created_at DESC LIMIT 2`).bind(serviceId).all<{
-      operation_probability: number | null; confidence: number | null; port_prediction: string | null; created_at: string;
+      evaluation_grade: string | null; confidence_level: number | null; port_prediction: string | null; created_at: string;
     }>();
   const current = predictions.results[0];
   const previous = predictions.results[1];
@@ -248,8 +248,8 @@ export async function readService(db: D1Database, serviceId: string): Promise<un
     ...service,
     previous_prediction: previous ?? null,
     change: current && previous ? {
-      operation_probability_points: current.operation_probability !== null && previous.operation_probability !== null ? current.operation_probability - previous.operation_probability : null,
-      confidence_points: current.confidence !== null && previous.confidence !== null ? current.confidence - previous.confidence : null,
+      evaluation_changed: current.evaluation_grade !== previous.evaluation_grade,
+      confidence_level_change: current.confidence_level !== null && previous.confidence_level !== null ? current.confidence_level - previous.confidence_level : null,
       port_changed: current.port_prediction !== previous.port_prediction
     } : null
   };

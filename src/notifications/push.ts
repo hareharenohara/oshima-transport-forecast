@@ -73,7 +73,6 @@ function routeMatches(group: string, terminal: string): boolean {
 interface PushAssessment { ai: FinalAssessment | null; ml: { predictions: Array<{ cancellationProbability: number }> } }
 
 function operationProbability(result: PushAssessment): number | null {
-  if (result.ai) return result.ai.operation_probability;
   const values = result.ml.predictions.map((row: { cancellationProbability: number }) => (1 - row.cancellationProbability) * 100);
   return values.length ? values.reduce((a: number, b: number) => a + b, 0) / values.length : null;
 }
@@ -106,8 +105,8 @@ export async function notifyPredictionChanges(env: PushEnv, service: ServiceInpu
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return 0;
   const current = operationProbability(result);
   if (current === null) return 0;
-  const previous = await env.DB.prepare(`SELECT COALESCE(operation_probability,
-    (SELECT AVG(operation_probability) * 100 FROM ml_predictions m WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = a.service_id)) value,
+  const previous = await env.DB.prepare(`SELECT
+    (SELECT AVG(operation_probability) * 100 FROM ml_predictions m WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = a.service_id) value,
     port_prediction FROM ai_predictions a WHERE service_id = ? ORDER BY created_at DESC LIMIT 1 OFFSET 1`).bind(service.serviceId).first<{ value: number | null; port_prediction: string | null }>();
   const subscribers = await env.DB.prepare(`SELECT s.id, s.endpoint, p.route_group, p.probability_threshold, p.change_threshold,
     p.notify_risk_transition, p.notify_port_change FROM push_subscriptions s JOIN user_notification_preferences p ON p.subscription_id=s.id`).all<SubscriberRow>();

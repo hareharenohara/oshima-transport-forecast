@@ -14,10 +14,10 @@ const summaryProperties = {
   previous_changes: stringList, missing_data: stringList, numerical_summary: { type: "string" }
 };
 const finalProperties = {
-  operation_probability: { type: "integer", minimum: 0, maximum: 100 }, confidence: { type: "integer", minimum: 0, maximum: 100 },
+  evaluation_grade: { type: "string", enum: ["A", "B", "C", "D", "E"] }, confidence_level: { type: "integer", minimum: 1, maximum: 5 },
   assessment: { type: "string" }, positive_factors: stringList, negative_factors: stringList, confidence_reasons: stringList,
   official_criteria_status: { type: "array", items: criterionSchema, maxItems: 0 }, port_prediction: { type: "string", enum: ["元町", "岡田", "不明"] },
-  port_confidence: { type: "integer", minimum: 0, maximum: 100 }, port_reasons: stringList, summary: { type: "string" }
+  port_confidence_level: { type: "integer", minimum: 1, maximum: 5 }, port_reasons: stringList, summary: { type: "string" }
 };
 const batchSummarySchema = strictObject({ services: { type: "array", items: strictObject({ service_id: { type: "string" }, ...summaryProperties }) } });
 const batchFinalSchema = strictObject({ services: { type: "array", items: strictObject({ service_id: { type: "string" }, ...finalProperties }) } });
@@ -109,7 +109,7 @@ export function compactJudgmentInput(input: unknown): unknown {
 }
 
 const SUMMARY_RULES = `複数便の予報情報を整理してください。入力配列のserviceIdをservice_idへ完全一致で転記し、就航見込みは決定しないでください。入力にある数値だけを使い、出発地点・航路・大島入口、ピーク、風・波・うねりの変化、モデル一致度、前回差、欠損を単位付きで示してください。各文章は80文字以内、各配列は重要な2件以内にしてください。`;
-const FINAL_RULES = `複数便を個別に判断してください。入力配列のserviceIdをservice_idへ完全一致で転記してください。ML欠航確率は過去の類似条件の傾向であり、1-MLを最終就航見込みにしないでください。公式基準、地点別予報、モデル差、予報先、前回差を別々に確認してください。入力にない数値や因果を作らないでください。official_criteria_statusは空配列にしてください（システムが入力から正確に転記します）。各文章は100文字以内、各配列は重要な2件以内にしてください。港の根拠がなければ不明、port_confidenceは0にしてください。`;
+const FINAL_RULES = `複数便を個別に判断してください。入力配列のserviceIdをservice_idへ完全一致で転記してください。ML欠航確率は過去の類似条件の傾向であり、1-MLをAIの最終就航見込みにしないでください。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはA=就航の可能性が高い、B=就航寄り、C=判断が分かれる、D=欠航寄り、E=欠航の可能性が高いです。confidence_levelは評価の信頼度で5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。公式基準、地点別予報、モデル差、予報先、前回差を別々に確認してください。入力にない数値や因果を作らないでください。official_criteria_statusは空配列にしてください（システムが入力から正確に転記します）。各文章は100文字以内、各配列は重要な2件以内にしてください。港の根拠がなければ不明、port_confidence_levelは1にしてください。港予測にも確率やパーセントを生成してはいけません。`;
 
 function materialCriteria(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return [];
@@ -145,7 +145,7 @@ export async function assessGroqBatch<T>(items: Array<{ serviceId: string; input
   return items.map((item) => ({
     ml: item.ml, forecastSummary: summaryMap.get(item.serviceId)!, ai: finalMap.get(item.serviceId)!, aiStatus: "generated" as const,
     geminiModels: { summary: GROQ_MODELS.summary, final: GROQ_MODELS.final },
-    aiProviders: { summary: "groq", final: "groq" }, promptVersion: "assessment-v6-groq-primary"
+    aiProviders: { summary: "groq", final: "groq" }, promptVersion: "assessment-v7-groq-ordinal"
   }));
 }
 

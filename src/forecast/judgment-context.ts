@@ -12,8 +12,8 @@ const TERMINAL_POINTS: Record<string, readonly string[]> = {
 const OSHIMA_POINTS = ["oshima_north_okata", "oshima_west_motomachi"] as const;
 
 export interface PreviousPredictionContext {
-  operationProbability: number | null;
-  confidence: number | null;
+  evaluationGrade: string | null;
+  confidenceLevel: number | null;
   portPrediction: string | null;
   createdAt: string;
 }
@@ -105,7 +105,7 @@ export function buildJudgmentContext(service: ServiceInput, ml: unknown, sources
     service,
     timing: { departure: service.scheduledDepartureJst, arrival: service.scheduledArrivalJst, forecastHorizonHours: Math.max(0, (start - now.getTime()) / HOUR) },
     unitsPolicy: "Units are explicit below and must not be converted or inferred.",
-    ml: { role: "past-outcome tendency, not final operation probability", result: ml },
+    ml: { role: "past-outcome tendency and numeric reference only, not the AI final assessment", result: ml },
     forecasts: { weather, marine },
     officialKnowledge: TOKAI_KISEN_OFFICIAL,
     officialCriteria,
