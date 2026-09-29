@@ -85,11 +85,15 @@ export interface AiBackfillItem {
   ml: { predictions: Array<{ weatherModel: string; marineModel: string; cancellationProbability: number }>; comparison: unknown; failures: unknown[] };
 }
 
-export async function readLatestAiBackfill(db: D1Database): Promise<{ runId: string; runAt: string; items: AiBackfillItem[] } | null> {
-  const run = await db.prepare(`SELECT r.id, r.run_at FROM forecast_runs r
-    WHERE EXISTS (SELECT 1 FROM ai_predictions a WHERE a.forecast_run_id=r.id AND a.ai_status='unavailable')
-      AND NOT EXISTS (SELECT 1 FROM run_logs l WHERE l.forecast_run_id=r.id AND l.event='ai_backfill_attempted')
-    ORDER BY r.run_at DESC LIMIT 1`).first<{ id: string; run_at: string }>();
+export async function readLatestAiBackfill(db: D1Database, retryRunId?: string): Promise<{ runId: string; runAt: string; items: AiBackfillItem[] } | null> {
+  const query = retryRunId
+    ? db.prepare(`SELECT r.id, r.run_at FROM forecast_runs r WHERE r.id=?
+        AND EXISTS (SELECT 1 FROM ai_predictions a WHERE a.forecast_run_id=r.id AND a.ai_status='unavailable') LIMIT 1`).bind(retryRunId)
+    : db.prepare(`SELECT r.id, r.run_at FROM forecast_runs r
+        WHERE EXISTS (SELECT 1 FROM ai_predictions a WHERE a.forecast_run_id=r.id AND a.ai_status='unavailable')
+          AND NOT EXISTS (SELECT 1 FROM run_logs l WHERE l.forecast_run_id=r.id AND l.event='ai_backfill_attempted')
+        ORDER BY r.run_at DESC LIMIT 1`);
+  const run = await query.first<{ id: string; run_at: string }>();
   if (!run) return null;
   const rows = await db.prepare(`SELECT s.id service_id, s.service_number, s.ship_type, s.origin, s.destination,
       s.counterpart_terminal, s.scheduled_departure, s.scheduled_arrival,

@@ -67,6 +67,20 @@ test("falls back from final 3.8 through 3.7 to 3.6",async()=>{
   assert.equal(result[0]?.aiStatus,"generated");
   assert.equal(result[0]?.geminiModels.final,"gemini-3.6-flash");
 });
+test("uses 3.5 Flash-Lite as the last final-assessment fallback",async()=>{
+  let summaryComplete=false;
+  const result=await assessBatchWithFallback([{serviceId:"a",input:{},ml:{}}],"x",async(input)=>{
+    const model=String(input).match(/models\/([^:]+)/)?.[1]??"";
+    if(!summaryComplete&&model==="gemini-3.5-flash-lite"){
+      summaryComplete=true;
+      return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({services:[{service_id:"a",risk_level:"low",model_agreement:"high",key_signals:[],missing_data:[],numerical_summary:"低リスク"}]})}]}}]});
+    }
+    if(model!=="gemini-3.5-flash-lite")return new Response("capacity",{status:503});
+    return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({services:[{service_id:"a",operation_probability:80,confidence:55,assessment:"運航見込み",positive_factors:[],negative_factors:[],confidence_reasons:[],port_prediction:"不明",summary:"最終代替モデル"}]})}]}}]});
+  });
+  assert.equal(result[0]?.aiStatus,"generated");
+  assert.equal(result[0]?.geminiModels.final,"gemini-3.5-flash-lite");
+});
 test("accepts valid zero and one-hundred percent boundary assessments",()=>{
   for(const value of [0,100]){
     const result=validateAssessment({operation_probability:value,confidence:value,assessment:"境界値",positive_factors:[],negative_factors:[],confidence_reasons:[],port_prediction:"不明",summary:"境界値確認"});

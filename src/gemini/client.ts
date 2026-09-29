@@ -1,7 +1,7 @@
 export const GEMINI_MODELS = { summary: "gemini-3.5-flash-lite", final: "gemini-3.8-flash" } as const;
 export const GEMINI_MODEL_CHAINS = {
   summary: ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
-  final: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"]
+  final: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 } as const;
 export const PROMPT_VERSION = "assessment-v4-model-fallback";
 
