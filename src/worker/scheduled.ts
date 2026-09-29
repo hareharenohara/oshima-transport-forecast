@@ -1,8 +1,9 @@
 import { assessService } from "../pipeline/assessment.js";
 import { fetchMultiModelSources } from "../forecast/multi-model.js";
+import { buildServiceForecastSeries } from "../forecast/service-series.js";
 import { BundledOfficialScheduleProvider } from "../schedule/bundled.js";
 import { syncSchedule } from "../schedule/sync.js";
-import { acquireRun, finishRun, logRun, saveAssessment, upcomingServices } from "../storage/d1.js";
+import { acquireRun, finishRun, logRun, saveAssessment, saveForecastSeries, upcomingServices } from "../storage/d1.js";
 import { notifyPredictionChanges } from "../notifications/push.js";
 
 export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
@@ -32,7 +33,9 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
     for (const service of services) {
       try {
         const assessment = await assessService(service, env.GEMINI_API_KEY, fetchFn, sources);
-        await saveAssessment(env.DB, run.id, service.serviceId, assessment, new Date().toISOString());
+        const createdAt = new Date().toISOString();
+        await saveAssessment(env.DB, run.id, service.serviceId, assessment, createdAt);
+        if (sources) await saveForecastSeries(env.DB, run.id, service.serviceId, buildServiceForecastSeries(service, sources), createdAt);
         const pushCount = await notifyPredictionChanges(env, service, assessment, fetchFn);
         if (pushCount > 0) await logRun(env.DB, run.id, "info", "push_sent", service.serviceId, `${pushCount} notifications`);
         successCount++;

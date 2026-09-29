@@ -1,5 +1,6 @@
 import type { ServiceInput } from "../types.js";
 import type { AssessmentResult } from "../pipeline/assessment.js";
+import type { ServiceForecastSeries } from "../forecast/service-series.js";
 
 export interface StoredServiceRow {
   id: string;
@@ -65,6 +66,20 @@ export async function saveAssessment(db: D1Database, runId: string, serviceId: s
       result.error ?? null, result.geminiModels?.final ?? null, result.promptVersion ?? null, createdAt
     ));
   await db.batch(statements);
+}
+
+export async function saveForecastSeries(db: D1Database, runId: string, serviceId: string, series: ServiceForecastSeries, createdAt: string): Promise<void> {
+  await db.batch([
+    db.prepare(`INSERT OR REPLACE INTO service_forecast_series (forecast_run_id, service_id, payload_json, created_at)
+      VALUES (?, ?, ?, ?)`).bind(runId, serviceId, JSON.stringify(series), createdAt),
+    db.prepare("DELETE FROM service_forecast_series WHERE created_at < datetime(?, '-30 days')").bind(createdAt)
+  ]);
+}
+
+export async function readForecastSeries(db: D1Database, serviceId: string): Promise<{ forecastRunId: string; createdAt: string; series: ServiceForecastSeries } | null> {
+  const row = await db.prepare(`SELECT forecast_run_id, payload_json, created_at FROM service_forecast_series
+    WHERE service_id = ? ORDER BY created_at DESC LIMIT 1`).bind(serviceId).first<{ forecast_run_id: string; payload_json: string; created_at: string }>();
+  return row ? { forecastRunId: row.forecast_run_id, createdAt: row.created_at, series: JSON.parse(row.payload_json) as ServiceForecastSeries } : null;
 }
 
 interface PredictionViewRow {

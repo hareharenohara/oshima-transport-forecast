@@ -37,8 +37,10 @@ If `GEMINI_API_KEY` is missing or either Gemini stage fails, the request still s
 - `GET /api/days?from=YYYY-MM-DD` returns five days of services with their latest AI prediction.
 - `GET /api/services/:id` returns one service, its latest AI prediction, and changes from the previous prediction when available.
 - `GET /api/services/:id/history` returns append-only AI and per-model ML history, newest first.
+- `GET /api/services/:id/series` returns the latest stored route-level wind, gust, wave, wave-period, and swell time series, separated by forecast model.
 
 These endpoints only read D1. Prediction generation is performed by the internal two-hour Cron handler.
+Series values preserve the source units (`m/s`, `m`, and `s`). Route values are maxima, except wave period, which is the route mean. Series rows are retained for 30 days.
 
 ## Push notifications
 

@@ -4,11 +4,11 @@ import { fetchForecasts } from "../forecast/open-meteo.js";
 import { buildFeatures, validateFeatures } from "../ml/build-features.js";
 import { predictRisk, type ModelBundle } from "../ml/inference.js";
 import { assessService } from "../pipeline/assessment.js";
-import { readDays, readHistory, readService } from "../storage/d1.js";
+import { readDays, readForecastSeries, readHistory, readService } from "../storage/d1.js";
 import type { Direction, ServiceInput, ShipType } from "../types.js";
 import { runScheduled } from "./scheduled.js";
 import { parsePreferences, parseSubscription, removeSubscription, saveSubscription } from "../notifications/push.js";
-import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER } from "../ui/assets.js";
+import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER, WEATHER_CHARTS_CSS, WEATHER_CHARTS_JS } from "../ui/assets.js";
 
 const MODEL_BUNDLE: ModelBundle = modelBundleJson;
 const MAX_BODY_BYTES = 16 * 1024;
@@ -96,12 +96,13 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML, "text/html; charset=utf-8", "public, max-age=60");
-  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}`, "text/css; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}`, "text/css; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`, "text/javascript; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(PWA_SETTINGS_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/phase6.js") return asset(PHASE6_JS.replace("panel.textContent='就航見込みの前回差は算出できません · 港予測 変更なし'", "panel.textContent=panel.textContent.replace('nullポイント','就航見込みの前回差は算出できません')"), "text/javascript; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v3").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js'"), "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/weather-charts.js") return asset(WEATHER_CHARTS_JS, "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v5").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js'"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/favicon.svg") return asset(FAVICON_SVG, "image/svg+xml; charset=utf-8", "public, max-age=86400");
   if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/health") {
@@ -135,16 +136,20 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
       return json({ error: { code: "STORAGE_UNAVAILABLE", message: "保存済み予測を取得できません。" }, requestId }, 503);
     }
   }
-  const serviceMatch = url.pathname.match(/^\/api\/services\/([^/]+)(\/history)?$/);
+  const serviceMatch = url.pathname.match(/^\/api\/services\/([^/]+)(\/history|\/series)?$/);
   if (request.method === "GET" && serviceMatch) {
     if (!env.DB) return json({ error: { code: "STORAGE_UNAVAILABLE", message: "Prediction storage is not configured" }, requestId }, 503);
     const serviceId = decodeURIComponent(serviceMatch[1]!);
     try {
-      if (serviceMatch[2]) return json({ serviceId, history: await readHistory(env.DB, serviceId), requestId });
+      if (serviceMatch[2] === "/history") return json({ serviceId, history: await readHistory(env.DB, serviceId), requestId });
+      if (serviceMatch[2] === "/series") {
+        const stored = await readForecastSeries(env.DB, serviceId);
+        return stored ? json({ serviceId, ...stored, requestId }) : json({ error: { code: "NOT_FOUND", message: "Forecast series not found" }, requestId }, 404);
+      }
       const service = await readService(env.DB, serviceId);
       return service ? json({ service, requestId }) : json({ error: { code: "NOT_FOUND", message: "Service not found" }, requestId }, 404);
     } catch (error) {
-      console.error(JSON.stringify({ event: "storage_read_failed", requestId, route: serviceMatch[2] ? "history" : "service", serviceId, message: error instanceof Error ? error.message : String(error) }));
+      console.error(JSON.stringify({ event: "storage_read_failed", requestId, route: serviceMatch[2]?.slice(1) ?? "service", serviceId, message: error instanceof Error ? error.message : String(error) }));
       return json({ error: { code: "STORAGE_UNAVAILABLE", message: "保存済み予測を取得できません。" }, requestId }, 503);
     }
   }

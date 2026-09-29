@@ -8,7 +8,7 @@ Preview Worker: `https://tokai-kisen-forecast-preview.hareharenohara.workers.dev
 
 Cronは公式時刻表から確認済みの基幹便をD1へ同期してから、4日先までの未出航便を予測します。同一Cron内のOpen-Meteo予報は全便で共有されます。
 
-ルートURLではスマホ向けUI「大島航路予報」を配信します。日別サマリー、便一覧、便詳細、ML暫定値、確信度、モデル別欠航リスク、予測推移、前回比較を表示します。ライト/ダーク表示はOS設定に追従し、手動で選んだ設定も保存します。PWAとしてインストールでき、最後に取得した予測のオフライン表示とログイン不要のPush購読に対応します。
+ルートURLではスマホ向けUI「大島航路予報」を配信します。日別サマリー、便一覧、便詳細、ML暫定値、確信度、モデル別欠航リスク、予測推移、前回比較、モデル別の風・波・うねり推移を表示します。ライト/ダーク表示はOS設定に追従し、手動で選んだ設定も保存します。PWAとしてインストールでき、最後に取得した予測のオフライン表示とログイン不要のPush購読に対応します。
 
 ## 現在の機能
 
@@ -36,7 +36,7 @@ pnpm db:migrate:local
 pnpm worker:dev
 ```
 
-別のターミナルから `GET http://127.0.0.1:8787/health`、`POST http://127.0.0.1:8787/api/predict`、または `POST http://127.0.0.1:8787/api/assess` を呼び出します。保存済み結果は `GET /api/days`、`GET /api/services/:id`、`GET /api/services/:id/history` で取得できます。`/api/assess` は複数モデル比較、Gemini 3.5 Flash-Liteによる整理、Gemini 3.8 Flashによる最終評価を順に実行します。Geminiが失敗した場合もML比較結果を返します。リクエスト仕様は [API](docs/api.md) にあります。
+別のターミナルから `GET http://127.0.0.1:8787/health`、`POST http://127.0.0.1:8787/api/predict`、または `POST http://127.0.0.1:8787/api/assess` を呼び出します。保存済み結果は `GET /api/days`、`GET /api/services/:id`、`GET /api/services/:id/history`、`GET /api/services/:id/series` で取得できます。`/api/assess` は複数モデル比較、Gemini 3.5 Flash-Liteによる整理、Gemini 3.8 Flashによる最終評価を順に実行します。Geminiが失敗した場合もML比較結果を返します。リクエスト仕様は [API](docs/api.md) にあります。
 
 監査済み127特徴量モデルは提供時系列データから再構築済みです。再学習方法と評価値は [Phase 1 status](docs/phase-1-status.md) を参照してください。
 

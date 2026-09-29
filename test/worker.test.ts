@@ -50,7 +50,18 @@ test("phase 6 UI renders stored history and handles a missing previous AI delta"
   assert.match(script, /history-panel/);
   assert.match(script, /前回差は算出できません/);
   assert.match(script, /textContent\.replace\('nullポイント'/);
-  assert.match(serviceWorker, /oshima-route-v3/);
+  assert.match(serviceWorker, /oshima-route-v5/);
+});
+
+test("worker serves model-separated weather chart assets", async () => {
+  const html = await (await handleRequest(new Request("https://example.test/"))).text();
+  const script = await (await handleRequest(new Request("https://example.test/weather-charts.js"))).text();
+  const serviceWorker = await (await handleRequest(new Request("https://example.test/sw.js"))).text();
+  assert.match(html, /\/weather-charts\.js/);
+  assert.match(script, /wave_height/);
+  assert.match(script, /swell_wave_height/);
+  assert.match(script, /モデル別/);
+  assert.match(serviceWorker, /oshima-route-v5/);
 });
 
 test("worker rejects invalid service input before external API calls", async () => {
