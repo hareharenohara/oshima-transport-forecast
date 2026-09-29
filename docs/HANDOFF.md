@@ -10,6 +10,7 @@
 - Cloudflare Worker: `tokai-kisen-forecast-preview`
 - Preview D1: `tokai-kisen-forecast-preview`（APAC）
 - Cron: 2時間ごと、`0 */2 * * *`
+- Preview Worker version: `2f3b3064-abad-442a-8f5a-7fe562d4decf`
 
 GitHubの `main` が正本です。OneDrive上の元フォルダやDownloads内のZIPがなくても、現在のWorker、モデル、マイグレーション、UI、テストは復元できます。再学習だけは元データZIPが別途必要です。
 
@@ -87,6 +88,7 @@ pnpm worker:dev
 - 2時間Cron、重複実行防止、実行ログ
 - 公式時刻表に基づく基幹便のダイヤ同期
 - 日別、便一覧、便詳細のスマホUI
+- PWA、オフライン時の最終取得値表示、ログイン不要のPush通知設定
 - Preview Worker/D1へのデプロイ
 
 ## 現在の注意点
@@ -97,6 +99,7 @@ pnpm worker:dev
 - 風、波、うねりの時系列はD1にまだ保存していないため、UIグラフは未実装です。
 - Production D1のIDはプレースホルダーです。`--env production` でデプロイしないでください。
 - このサービスは公式運航情報ではありません。
+- PreviewにはVAPID鍵3種がSecret登録済みで、migration `0003_phase5_push.sql` も適用済みです。秘密鍵はGitに保存していません。
 
 ## 次に行う作業
 
