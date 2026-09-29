@@ -97,7 +97,7 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML, "text/html; charset=utf-8", "public, max-age=60");
-  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}`, "text/css; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}\n.grade-badge{width:94px;height:94px;border:8px solid var(--sea);border-radius:50%;display:grid;place-content:center;text-align:center;background:var(--card)}.grade-badge b{font-size:30px;line-height:1}.grade-badge small{display:block;font-size:9px;color:var(--muted);margin-top:5px;white-space:nowrap}`, "text/css; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`
     .replace("if(row.operation_probability!=null)return Number(row.operation_probability);", "")
     .replaceAll("予測推移", "ML参考値の推移")
@@ -112,7 +112,7 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
     .replace("panel.textContent='就航見込みの前回差は算出できません · 港予測 変更なし'", "panel.textContent=panel.textContent.replace('nullポイント','就航見込みの前回差は算出できません')"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/weather-charts.js") return asset(WEATHER_CHARTS_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/official-status.js") return asset(OFFICIAL_STATUS_JS, "text/javascript; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v7").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js','/official-status.js'"), "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v8").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js','/official-status.js'"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/favicon.svg") return asset(FAVICON_SVG, "image/svg+xml; charset=utf-8", "public, max-age=86400");
   if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/health") {

@@ -50,7 +50,7 @@ test("phase 6 UI renders stored history and handles a missing previous AI delta"
   assert.match(script, /history-panel/);
   assert.match(script, /前回差は算出できません/);
   assert.match(script, /textContent\.replace\('nullポイント'/);
-  assert.match(serviceWorker, /oshima-route-v7/);
+  assert.match(serviceWorker, /oshima-route-v8/);
 });
 
 test("worker serves model-separated weather chart assets", async () => {
@@ -61,7 +61,7 @@ test("worker serves model-separated weather chart assets", async () => {
   assert.match(script, /wave_height/);
   assert.match(script, /swell_wave_height/);
   assert.match(script, /モデル別/);
-  assert.match(serviceWorker, /oshima-route-v7/);
+  assert.match(serviceWorker, /oshima-route-v8/);
 });
 
 test("worker serves collapsed days and official status presentation", async () => {
@@ -71,6 +71,9 @@ test("worker serves collapsed days and official status presentation", async () =
   assert.match(html, /\/official-status\.js/);
   assert.doesNotMatch(app, /i===0\?'open'/);
   assert.match(app, /aria-expanded="false"/);
+  assert.match(app, /最低AI評価/);
+  assert.match(app, /ML参考 平均/);
+  assert.doesNotMatch(app, /平均就航見込み/);
   assert.match(app, /official_status/);
   assert.match(official, /公式運航情報/);
 });
