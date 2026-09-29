@@ -1,6 +1,6 @@
 import test from "node:test"; import assert from "node:assert/strict";
 import { compareModels } from "../src/forecast/model-comparison.js";
-import { assessWithFallback, validateAssessment, validateForecastSummary } from "../src/gemini/client.js";
+import { assessBatchWithFallback, assessWithFallback, validateAssessment, validateForecastSummary } from "../src/gemini/client.js";
 test("compares forecast models",()=>{const x=compareModels([{model:"MSM",value:10},{model:"ECMWF",value:12},{model:"GFS",value:11}],2,5);assert.equal(x.mean,11);assert.equal(x.agreement,"high");assert.ok(x.stddev>0)});
 test("validates final assessment",()=>{assert.equal(validateAssessment({operation_probability:40,confidence:50,assessment:"注意",positive_factors:[],negative_factors:["波"],confidence_reasons:[],port_prediction:"岡田",summary:"注意"}).confidence,50)});
 test("validates forecast summary",()=>{assert.equal(validateForecastSummary({risk_level:"low",model_agreement:"high",key_signals:["低リスク"],missing_data:[],numerical_summary:"2モデルの平均欠航リスク1%"}).risk_level,"low")});
@@ -33,6 +33,20 @@ test("Gemini retry preserves the final response diagnostic",async()=>{
   assert.equal(calls,2);
   assert.match(x.error??"",/RESOURCE_EXHAUSTED/);
   assert.match(x.error??"",/quota exceeded/);
+});
+test("batches all services into one summary and one final Gemini call",async()=>{
+  const called:string[]=[];
+  const items=["a","b"].map(serviceId=>({serviceId,input:{serviceId},ml:{serviceId}}));
+  const result=await assessBatchWithFallback(items,"x",async(input)=>{
+    const url=String(input);called.push(url);
+    const services=items.map(({serviceId})=>url.includes("flash-lite")
+      ? {service_id:serviceId,risk_level:"low",model_agreement:"high",key_signals:[],missing_data:[],numerical_summary:"低リスク"}
+      : {service_id:serviceId,operation_probability:90,confidence:70,assessment:"運航見込み",positive_factors:[],negative_factors:[],confidence_reasons:[],port_prediction:"不明",summary:"安定"});
+    return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({services})}]}}]});
+  });
+  assert.equal(called.length,2);
+  assert.equal(result.length,2);
+  assert.ok(result.every(item=>item.aiStatus==="generated"&&item.ai?.operation_probability===90));
 });
 test("accepts valid zero and one-hundred percent boundary assessments",()=>{
   for(const value of [0,100]){

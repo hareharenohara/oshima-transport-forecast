@@ -1,4 +1,4 @@
-import { assessService } from "../pipeline/assessment.js";
+import { assessServicesBatch } from "../pipeline/assessment.js";
 import { fetchMultiModelSources } from "../forecast/multi-model.js";
 import { buildServiceForecastSeries } from "../forecast/service-series.js";
 import { fetchOfficialStatuses, OFFICIAL_STATUS_URL } from "../schedule/official-status.js";
@@ -8,12 +8,6 @@ import { acquireRun, finishRun, logRun, saveAssessment, saveForecastSeries, save
 import { notifyPredictionChanges } from "../notifications/push.js";
 
 export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
-
-export const GEMINI_BUDGET = { intervalHours: 6, servicesPerRun: 4, serviceDelayMs: 15_000 } as const;
-
-export function geminiBudgetEnabled(now: Date): boolean {
-  return now.getUTCHours() % GEMINI_BUDGET.intervalHours === 0;
-}
 
 export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fetchFn: typeof fetch = fetch): Promise<{ status: string; runId?: string; targetCount?: number; successCount?: number; errorCount?: number }> {
   const startedAt = Date.now();
@@ -44,22 +38,21 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
     const services = await upcomingServices(env.DB, now);
     targetCount = services.length;
     const sources = services.length > 0 ? await fetchMultiModelSources(fetchFn) : undefined;
-    const geminiEnabled = Boolean(env.GEMINI_API_KEY) && geminiBudgetEnabled(now);
-    const geminiCount = geminiEnabled ? Math.min(GEMINI_BUDGET.servicesPerRun, services.length) : 0;
-    await logRun(env.DB, run.id, "info", "gemini_budget", undefined, `${geminiCount} eligible, ${services.length - geminiCount} deferred`);
-    for (const [index, service] of services.entries()) {
+    const batch = await assessServicesBatch(services, env.GEMINI_API_KEY, fetchFn, sources);
+    await logRun(env.DB, run.id, "info", "gemini_batch", undefined, `${batch.assessed.length} services, ${env.GEMINI_API_KEY && batch.assessed.length ? "2 calls attempted" : "0 calls"}`);
+    for (const failure of batch.failures) {
+      errorCount++;
+      await logRun(env.DB, run.id, "error", "service_prediction_failed", failure.service.serviceId, failure.error instanceof Error ? failure.error.message : String(failure.error));
+    }
+    for (const { service, result: assessment } of batch.assessed) {
       try {
-        const useGemini = index < geminiCount;
-        if (useGemini && index > 0) await new Promise((resolve) => setTimeout(resolve, GEMINI_BUDGET.serviceDelayMs));
-        const assessment = await assessService(service, useGemini ? env.GEMINI_API_KEY : undefined, fetchFn, sources,
-          env.GEMINI_API_KEY ? "Gemini deferred by free-tier request budget" : "GEMINI_API_KEY is not configured");
         const createdAt = new Date().toISOString();
         await saveAssessment(env.DB, run.id, service.serviceId, assessment, createdAt);
         if (sources) await saveForecastSeries(env.DB, run.id, service.serviceId, buildServiceForecastSeries(service, sources), createdAt);
         const pushCount = await notifyPredictionChanges(env, service, assessment, fetchFn);
         if (pushCount > 0) await logRun(env.DB, run.id, "info", "push_sent", service.serviceId, `${pushCount} notifications`);
         successCount++;
-        if (useGemini && assessment.aiStatus === "unavailable") await logRun(env.DB, run.id, "warn", "gemini_unavailable", service.serviceId, assessment.error);
+        if (env.GEMINI_API_KEY && assessment.aiStatus === "unavailable") await logRun(env.DB, run.id, "warn", "gemini_unavailable", service.serviceId, assessment.error);
       } catch (error) {
         errorCount++;
         await logRun(env.DB, run.id, "error", "service_prediction_failed", service.serviceId, error instanceof Error ? error.message : String(error));
