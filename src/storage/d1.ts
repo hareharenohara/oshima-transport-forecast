@@ -171,6 +171,12 @@ export async function readForecastSeries(db: D1Database, serviceId: string): Pro
   return row ? { forecastRunId: row.forecast_run_id, createdAt: row.created_at, series: JSON.parse(row.payload_json) as ServiceForecastSeries } : null;
 }
 
+export function dateRangeEnd(fromDate: string, days: number): string {
+  const [year, month, day] = fromDate.split("-").map(Number);
+  const end = new Date(Date.UTC(year!, month! - 1, day! + days));
+  return end.toISOString().slice(0, 10);
+}
+
 export async function saveOfficialStatuses(db: D1Database, statuses: OfficialServiceStatus[], observedAt: string, officialSource: string): Promise<number> {
   if (!statuses.length) return 0;
   const results = await db.batch(statuses.map((item) => db.prepare(`INSERT INTO official_service_statuses
@@ -226,9 +232,7 @@ const LATEST_PREDICTION_SELECT = `SELECT s.id AS service_id, s.service_date, s.s
   ) LEFT JOIN official_service_statuses os ON os.service_id = s.id`;
 
 export async function readDays(db: D1Database, fromDate: string, days = 5): Promise<Array<{ date: string; services: PredictionViewRow[] }>> {
-  const end = new Date(`${fromDate}T00:00:00+09:00`);
-  end.setDate(end.getDate() + days);
-  const endDate = end.toISOString().slice(0, 10);
+  const endDate = dateRangeEnd(fromDate, days);
   const rows = await db.prepare(`${LATEST_PREDICTION_SELECT} WHERE s.service_date >= ? AND s.service_date < ? ORDER BY s.scheduled_departure`).bind(fromDate, endDate).all<PredictionViewRow>();
   const grouped = new Map<string, PredictionViewRow[]>();
   for (const row of rows.results) grouped.set(row.service_date, [...(grouped.get(row.service_date) ?? []), row]);
