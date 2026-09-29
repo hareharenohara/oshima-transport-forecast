@@ -48,11 +48,24 @@ test("batches all services into one summary and one final Gemini call",async()=>
   assert.equal(result.length,2);
   assert.ok(result.every(item=>item.aiStatus==="generated"&&item.ai?.operation_probability===90));
 });
-test("does not spend another Cron batch call after a 429",async()=>{
+test("tries each summary model once after a 429",async()=>{
   let calls=0;
   const result=await assessBatchWithFallback([{serviceId:"a",input:{},ml:{}}],"x",async()=>{calls++;return new Response("quota",{status:429})});
-  assert.equal(calls,1);
+  assert.equal(calls,2);
   assert.equal(result[0]?.aiStatus,"unavailable");
+});
+test("falls back from final 3.8 through 3.7 to 3.6",async()=>{
+  const models:string[]=[];
+  const item={serviceId:"a",input:{},ml:{}};
+  const result=await assessBatchWithFallback([item],"x",async(input)=>{
+    const model=String(input).match(/models\/([^:]+)/)?.[1]??"";models.push(model);
+    if(model==="gemini-3.5-flash-lite")return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({services:[{service_id:"a",risk_level:"low",model_agreement:"high",key_signals:[],missing_data:[],numerical_summary:"低リスク"}]})}]}}]});
+    if(model!=="gemini-3.6-flash")return new Response("capacity",{status:503});
+    return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({services:[{service_id:"a",operation_probability:88,confidence:65,assessment:"運航見込み",positive_factors:[],negative_factors:[],confidence_reasons:[],port_prediction:"不明",summary:"代替モデル"}]})}]}}]});
+  });
+  assert.deepEqual(models,["gemini-3.5-flash-lite","gemini-3.8-flash","gemini-3.7-flash","gemini-3.6-flash"]);
+  assert.equal(result[0]?.aiStatus,"generated");
+  assert.equal(result[0]?.geminiModels.final,"gemini-3.6-flash");
 });
 test("accepts valid zero and one-hundred percent boundary assessments",()=>{
   for(const value of [0,100]){

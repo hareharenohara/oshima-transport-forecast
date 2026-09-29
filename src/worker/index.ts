@@ -7,6 +7,7 @@ import { assessService } from "../pipeline/assessment.js";
 import { readDays, readForecastSeries, readHistory, readService } from "../storage/d1.js";
 import type { Direction, ServiceInput, ShipType } from "../types.js";
 import { runScheduled } from "./scheduled.js";
+import { runLatestAiBackfill } from "./ai-backfill.js";
 import { parsePreferences, parseSubscription, removeSubscription, saveSubscription } from "../notifications/push.js";
 import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, OFFICIAL_STATUS_CSS, OFFICIAL_STATUS_JS, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER, WEATHER_CHARTS_CSS, WEATHER_CHARTS_JS } from "../ui/assets.js";
 
@@ -195,6 +196,7 @@ export default {
   },
   scheduled(controller: ScheduledController, env: WorkerEnv, ctx: ExecutionContext): void {
     if (!env.DB) throw new Error("DB binding is required for scheduled runs");
-    ctx.waitUntil(runScheduled(env as WorkerEnv & { DB: D1Database }, controller.scheduledTime));
+    const scheduledEnv = env as WorkerEnv & { DB: D1Database };
+    ctx.waitUntil(controller.cron === "*/5 * * * *" ? runLatestAiBackfill(scheduledEnv) : runScheduled(scheduledEnv, controller.scheduledTime));
   }
 } satisfies ExportedHandler<WorkerEnv>;

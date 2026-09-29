@@ -6,6 +6,8 @@ The scheduled handler runs every two hours. A unique UTC two-hour `run_slot` pre
 
 ML runs for every target on every two-hour invocation. Gemini also remains on the two-hour cadence, but all services are combined into one summary-model request and one final-model request. Each run records the batch size and attempted call count in `run_logs` as `gemini_batch`, so quota behavior is auditable without logging credentials.
 
+AI recovery can be run against a stored forecast run without recalculating or changing its ML values. It reconstructs only the persisted per-model comparison, explicitly marks unavailable original source-failure detail, updates the existing AI rows in place, and records the attempted and completed backfill events. This path is intended for controlled recovery, not routine duplicate inference.
+
 Each run also reads the official Tokai Kisen same-day Oshima operation page and stores matched service statuses separately from predictions and confirmed actual results. Failure of the official page or parser is logged as a warning and does not stop weather prediction. Official wording and source update time are preserved; elapsed schedule time is never used to invent a departure result.
 
 Read APIs expose day summaries, latest service state with changes from the prior prediction, and complete prediction history. Local integration on 2026-09-28 verified one service, two ML model combinations, a generated Gemini assessment, and duplicate-run suppression.

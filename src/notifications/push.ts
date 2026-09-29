@@ -1,4 +1,4 @@
-import type { AssessmentResult } from "../pipeline/assessment.js";
+import type { FinalAssessment } from "../gemini/client.js";
 import type { ServiceInput } from "../types.js";
 
 export interface PushEnv {
@@ -70,7 +70,9 @@ function routeMatches(group: string, terminal: string): boolean {
   return group === "all" || (group === "tokyo" && ["東京", "横浜", "久里浜", "館山"].includes(terminal)) || (group === "atami" && ["熱海", "伊東", "稲取"].includes(terminal)) || (group === "other" && !["東京", "横浜", "久里浜", "館山", "熱海", "伊東", "稲取"].includes(terminal));
 }
 
-function operationProbability(result: AssessmentResult): number | null {
+interface PushAssessment { ai: FinalAssessment | null; ml: { predictions: Array<{ cancellationProbability: number }> } }
+
+function operationProbability(result: PushAssessment): number | null {
   if (result.ai) return result.ai.operation_probability;
   const values = result.ml.predictions.map((row: { cancellationProbability: number }) => (1 - row.cancellationProbability) * 100);
   return values.length ? values.reduce((a: number, b: number) => a + b, 0) / values.length : null;
@@ -100,7 +102,7 @@ export function notificationEventKeys(current: number, previous: number | null, 
   return events;
 }
 
-export async function notifyPredictionChanges(env: PushEnv, service: ServiceInput, result: AssessmentResult, fetchFn: typeof fetch = fetch): Promise<number> {
+export async function notifyPredictionChanges(env: PushEnv, service: ServiceInput, result: PushAssessment, fetchFn: typeof fetch = fetch): Promise<number> {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return 0;
   const current = operationProbability(result);
   if (current === null) return 0;

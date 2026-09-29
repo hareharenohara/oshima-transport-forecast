@@ -1,5 +1,5 @@
 import type { ServiceInput } from "../types.js";
-import type { AssessmentResult } from "../pipeline/assessment.js";
+import type { FinalAssessment, ForecastSummary } from "../gemini/client.js";
 import type { ServiceForecastSeries } from "../forecast/service-series.js";
 import type { OfficialServiceStatus } from "../schedule/official-status.js";
 
@@ -47,7 +47,17 @@ export async function upcomingServices(db: D1Database, now: Date, horizonDays = 
   }));
 }
 
-export async function saveAssessment(db: D1Database, runId: string, serviceId: string, result: AssessmentResult, createdAt: string): Promise<void> {
+interface PersistableAssessment {
+  ml: { predictions: Array<{ cancellationProbability: number; weatherModel: string; marineModel: string }> };
+  forecastSummary: ForecastSummary | null;
+  ai: FinalAssessment | null;
+  aiStatus: "generated" | "unavailable";
+  error?: string;
+  geminiModels?: { summary: string; final: string };
+  promptVersion?: string;
+}
+
+export async function saveAssessment(db: D1Database, runId: string, serviceId: string, result: PersistableAssessment, createdAt: string): Promise<void> {
   const statements = result.ml.predictions.map((prediction: { cancellationProbability: number; weatherModel: string; marineModel: string }) =>
     db.prepare(`INSERT INTO ml_predictions (id, forecast_run_id, service_id, cancellation_probability,
       operation_probability, model_version, features_version, weather_model, marine_model, created_at)
@@ -58,15 +68,63 @@ export async function saveAssessment(db: D1Database, runId: string, serviceId: s
   const ai = result.ai;
   statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, operation_probability,
     confidence, assessment, positive_factors_json, negative_factors_json, confidence_reasons_json, port_prediction,
-    summary, forecast_summary_json, ai_status, error_message, gemini_model, prompt_version, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+    summary, forecast_summary_json, ai_status, error_message, gemini_model, gemini_summary_model, prompt_version, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
       crypto.randomUUID(), runId, serviceId, ai?.operation_probability ?? null, ai?.confidence ?? null,
       ai?.assessment ?? null, JSON.stringify(ai?.positive_factors ?? []), JSON.stringify(ai?.negative_factors ?? []),
       JSON.stringify(ai?.confidence_reasons ?? []), ai?.port_prediction ?? null, ai?.summary ?? null,
       result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus,
-      result.error ?? null, result.geminiModels?.final ?? null, result.promptVersion ?? null, createdAt
+      result.error ?? null, result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null, result.promptVersion ?? null, createdAt
     ));
   await db.batch(statements);
+}
+
+export interface AiBackfillItem {
+  serviceId: string;
+  input: unknown;
+  ml: { predictions: Array<{ weatherModel: string; marineModel: string; cancellationProbability: number }>; comparison: unknown; failures: unknown[] };
+}
+
+export async function readLatestAiBackfill(db: D1Database): Promise<{ runId: string; runAt: string; items: AiBackfillItem[] } | null> {
+  const run = await db.prepare(`SELECT r.id, r.run_at FROM forecast_runs r
+    WHERE EXISTS (SELECT 1 FROM ai_predictions a WHERE a.forecast_run_id=r.id AND a.ai_status='unavailable')
+      AND NOT EXISTS (SELECT 1 FROM run_logs l WHERE l.forecast_run_id=r.id AND l.event='ai_backfill_attempted')
+    ORDER BY r.run_at DESC LIMIT 1`).first<{ id: string; run_at: string }>();
+  if (!run) return null;
+  const rows = await db.prepare(`SELECT s.id service_id, s.service_number, s.ship_type, s.origin, s.destination,
+      s.counterpart_terminal, s.scheduled_departure, s.scheduled_arrival,
+      m.weather_model, m.marine_model, m.cancellation_probability
+    FROM services s JOIN ml_predictions m ON m.service_id=s.id
+    WHERE m.forecast_run_id=? ORDER BY s.scheduled_departure, m.weather_model, m.marine_model`).bind(run.id).all<Record<string, unknown>>();
+  const grouped = new Map<string, Record<string, unknown>[] >();
+  for (const row of rows.results) grouped.set(String(row.service_id), [...(grouped.get(String(row.service_id)) ?? []), row]);
+  const items = [...grouped].map(([serviceId, values]) => {
+    const first = values[0]!;
+    const predictions = values.map((row) => ({ weatherModel: String(row.weather_model), marineModel: String(row.marine_model), cancellationProbability: Number(row.cancellation_probability) }));
+    const probabilities = predictions.map((item) => item.cancellationProbability);
+    const mean = probabilities.reduce((sum, value) => sum + value, 0) / probabilities.length;
+    const min = Math.min(...probabilities), max = Math.max(...probabilities);
+    const comparison = { mean, min, max, range: max - min, models: predictions };
+    const service = { serviceId, voyageNumber: String(first.service_number), shipType: first.ship_type,
+      direction: first.destination === "大島" ? "to_oshima" : "from_oshima", counterpartTerminal: first.counterpart_terminal,
+      scheduledDepartureJst: first.scheduled_departure, scheduledArrivalJst: first.scheduled_arrival };
+    const ml = { predictions, comparison, failures: [{ type: "backfill", message: "Original source-failure detail was not persisted; no values were inferred." }] };
+    return { serviceId, input: { service, comparison, failures: ml.failures }, ml };
+  });
+  return { runId: run.id, runAt: run.run_at, items };
+}
+
+export async function updateAiBackfill(db: D1Database, runId: string, serviceId: string, result: PersistableAssessment): Promise<void> {
+  await db.prepare(`UPDATE ai_predictions SET operation_probability=?, confidence=?, assessment=?,
+    positive_factors_json=?, negative_factors_json=?, confidence_reasons_json=?, port_prediction=?, summary=?,
+    forecast_summary_json=?, ai_status=?, error_message=?, gemini_model=?, gemini_summary_model=?, prompt_version=?
+    WHERE forecast_run_id=? AND service_id=?`).bind(
+      result.ai?.operation_probability ?? null, result.ai?.confidence ?? null, result.ai?.assessment ?? null,
+      JSON.stringify(result.ai?.positive_factors ?? []), JSON.stringify(result.ai?.negative_factors ?? []),
+      JSON.stringify(result.ai?.confidence_reasons ?? []), result.ai?.port_prediction ?? null, result.ai?.summary ?? null,
+      result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus, result.error ?? null,
+      result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null, result.promptVersion ?? null, runId, serviceId
+    ).run();
 }
 
 export async function saveForecastSeries(db: D1Database, runId: string, serviceId: string, series: ServiceForecastSeries, createdAt: string): Promise<void> {

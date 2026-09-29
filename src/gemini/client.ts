@@ -1,5 +1,9 @@
 export const GEMINI_MODELS = { summary: "gemini-3.5-flash-lite", final: "gemini-3.8-flash" } as const;
-export const PROMPT_VERSION = "assessment-v3-batch";
+export const GEMINI_MODEL_CHAINS = {
+  summary: ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
+  final: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"]
+} as const;
+export const PROMPT_VERSION = "assessment-v4-model-fallback";
 
 export interface ForecastSummary { risk_level: "low" | "medium" | "high"; model_agreement: "high" | "medium" | "low"; key_signals: string[]; missing_data: string[]; numerical_summary: string }
 export interface FinalAssessment { operation_probability: number; confidence: number; assessment: string; positive_factors: string[]; negative_factors: string[]; confidence_reasons: string[]; port_prediction: "元町" | "岡田" | "不明"; summary: string }
@@ -76,29 +80,53 @@ export function generateFinalAssessment(input: unknown, summary: ForecastSummary
   return generateStructured(GEMINI_MODELS.final, `伊豆大島航路の予測補助として最終評価してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summary)}\n元入力:\n${JSON.stringify(input)}`, finalSchema, validateAssessment, apiKey, fetchFn);
 }
 
-export function generateBatchForecastSummaries(inputs: Array<{ serviceId: string; input: unknown }>, apiKey: string, fetchFn: typeof fetch = fetch) {
-  return generateStructured(GEMINI_MODELS.summary, `伊豆大島航路の複数便を一括整理してください。各service_idを保持し、入力中の数値だけを使い、欠損モデルを明記し、就航可否を最終判断しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn, false);
+export function generateBatchForecastSummaries(inputs: Array<{ serviceId: string; input: unknown }>, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.summary) {
+  return generateStructured(model, `伊豆大島航路の複数便を一括整理してください。各service_idを保持し、入力中の数値だけを使い、欠損モデルを明記し、就航可否を最終判断しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn, false);
 }
 
-export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string; input: unknown }>, summaries: Array<{ serviceId: string; value: ForecastSummary }>, apiKey: string, fetchFn: typeof fetch = fetch) {
-  return generateStructured(GEMINI_MODELS.final, `伊豆大島航路の複数便を一括して最終評価してください。各service_idを保持してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summaries)}\n元入力:\n${JSON.stringify(inputs)}`, batchFinalSchema, (value) => validateBatch(value, validateAssessment), apiKey, fetchFn, false);
+export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string; input: unknown }>, summaries: Array<{ serviceId: string; value: ForecastSummary }>, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.final) {
+  return generateStructured(model, `伊豆大島航路の複数便を一括して最終評価してください。各service_idを保持してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summaries)}\n元入力:\n${JSON.stringify(inputs)}`, batchFinalSchema, (value) => validateBatch(value, validateAssessment), apiKey, fetchFn, false);
+}
+
+function mayTryFallback(error: unknown): boolean {
+  const status = Number((error instanceof Error ? error.message : String(error)).match(/HTTP (\d{3})/)?.[1]);
+  return ![400, 401, 403].includes(status);
+}
+
+async function tryModelChain<T>(models: readonly string[], run: (model: string) => Promise<T>): Promise<{ model: string; value: T; failures: string[] }> {
+  const failures: string[] = [];
+  for (const model of models) {
+    try { return { model, value: await run(model), failures }; }
+    catch (error) {
+      failures.push(error instanceof Error ? error.message : String(error));
+      if (!mayTryFallback(error)) break;
+    }
+  }
+  throw new Error(`Gemini model chain failed: ${failures.join(" | ")}`);
 }
 
 export async function assessBatchWithFallback<T>(items: Array<{ serviceId: string; input: unknown; ml: T }>, apiKey: string, fetchFn: typeof fetch = fetch) {
+  let summaryModel: string = GEMINI_MODELS.summary;
+  let finalModel: string = GEMINI_MODELS.final;
   const unavailable = (error: unknown, summaries = new Map<string, ForecastSummary>()) => items.map((item) => ({
     ml: item.ml, forecastSummary: summaries.get(item.serviceId) ?? null, ai: null, aiStatus: "unavailable" as const,
-    error: error instanceof Error ? error.message : String(error), geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION
+    error: error instanceof Error ? error.message : String(error), geminiModels: { summary: summaryModel, final: finalModel }, promptVersion: PROMPT_VERSION
   }));
   try {
-    const summaryRows = await generateBatchForecastSummaries(items.map(({ serviceId, input }) => ({ serviceId, input })), apiKey, fetchFn);
+    const inputs = items.map(({ serviceId, input }) => ({ serviceId, input }));
+    const summaryAttempt = await tryModelChain(GEMINI_MODEL_CHAINS.summary, (model) => generateBatchForecastSummaries(inputs, apiKey, fetchFn, model));
+    summaryModel = summaryAttempt.model;
+    const summaryRows = summaryAttempt.value;
     const summaries = new Map(summaryRows.map((row) => [row.serviceId, row.value]));
     if (items.some((item) => !summaries.has(item.serviceId))) return unavailable(new Error("Gemini batch summary omitted a service"), summaries);
     try {
-      const finalRows = await generateBatchFinalAssessments(items.map(({ serviceId, input }) => ({ serviceId, input })), summaryRows, apiKey, fetchFn);
+      const finalAttempt = await tryModelChain(GEMINI_MODEL_CHAINS.final, (model) => generateBatchFinalAssessments(inputs, summaryRows, apiKey, fetchFn, model));
+      finalModel = finalAttempt.model;
+      const finalRows = finalAttempt.value;
       const finals = new Map(finalRows.map((row) => [row.serviceId, row.value]));
       return items.map((item) => finals.has(item.serviceId)
-        ? { ml: item.ml, forecastSummary: summaries.get(item.serviceId)!, ai: finals.get(item.serviceId)!, aiStatus: "generated" as const, geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION }
-        : { ml: item.ml, forecastSummary: summaries.get(item.serviceId)!, ai: null, aiStatus: "unavailable" as const, error: "Gemini batch final omitted this service", geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION });
+        ? { ml: item.ml, forecastSummary: summaries.get(item.serviceId)!, ai: finals.get(item.serviceId)!, aiStatus: "generated" as const, geminiModels: { summary: summaryModel, final: finalModel }, promptVersion: PROMPT_VERSION }
+        : { ml: item.ml, forecastSummary: summaries.get(item.serviceId)!, ai: null, aiStatus: "unavailable" as const, error: "Gemini batch final omitted this service", geminiModels: { summary: summaryModel, final: finalModel }, promptVersion: PROMPT_VERSION });
     } catch (error) { return unavailable(error, summaries); }
   } catch (error) { return unavailable(error); }
 }
