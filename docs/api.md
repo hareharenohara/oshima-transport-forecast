@@ -28,7 +28,7 @@ The request body limit is 16 KiB. Responses use `Cache-Control: no-store` becaus
 
 ## Multi-model assessment
 
-`POST /api/assess` accepts the same service object. It returns all complete weather/marine ML combinations, their comparison statistics, explicit source failures, the intermediate AI summary, and the final assessment. The AI result uses `evaluation_grade` (`A` through `E`) and `confidence_level` (`1` through `5`). It does not generate a final percentage. Numeric `operation_probability` values belong only to the ML result and are presented as statistical reference values.
+`POST /api/assess` accepts the same service object. It returns all complete weather/marine ML combinations, their comparison statistics, explicit source failures, the intermediate AI summary, and the final assessment. The AI result uses `evaluation_grade` (`S`, `A`, `B`, `C`, or `D`) and `confidence_level` (`1` through `5`). It does not generate a final percentage. Numeric `operation_probability` values belong only to the ML result and are presented as statistical reference values.
 
 If `GEMINI_API_KEY` is missing or either Gemini stage fails, the request still succeeds with the multi-model result, `aiStatus: "unavailable"`, and `ai: null`. Forecast coverage too small to compare at least two valid combinations returns HTTP 503.
 

@@ -52,14 +52,14 @@ export async function upcomingServices(db: D1Database, now: Date, horizonDays = 
 export async function readPreviousPredictionContexts(db: D1Database, serviceIds: string[]): Promise<Map<string, PreviousPredictionContext>> {
   if (!serviceIds.length) return new Map();
   const placeholders = serviceIds.map(() => "?").join(",");
-  const rows = await db.prepare(`SELECT a.service_id, a.evaluation_grade, a.confidence_level, a.port_prediction, a.created_at
+  const rows = await db.prepare(`SELECT a.service_id, a.evaluation_rating, a.confidence_level, a.port_prediction, a.created_at
     FROM ai_predictions a WHERE a.service_id IN (${placeholders}) AND a.ai_status='generated'
       AND a.created_at=(SELECT MAX(previous.created_at) FROM ai_predictions previous
         WHERE previous.service_id=a.service_id AND previous.ai_status='generated')`).bind(...serviceIds).all<{
-          service_id: string; evaluation_grade: string | null; confidence_level: number | null; port_prediction: string | null; created_at: string;
+          service_id: string; evaluation_rating: string | null; confidence_level: number | null; port_prediction: string | null; created_at: string;
         }>();
   return new Map(rows.results.map((row) => [row.service_id, {
-    evaluationGrade: row.evaluation_grade,
+    evaluationGrade: row.evaluation_rating,
     confidenceLevel: row.confidence_level,
     portPrediction: row.port_prediction,
     createdAt: row.created_at
@@ -86,7 +86,7 @@ export async function saveAssessment(db: D1Database, runId: string, serviceId: s
       prediction.weatherModel, prediction.marineModel, createdAt)
   );
   const ai = result.ai;
-  statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, evaluation_grade,
+  statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, evaluation_rating,
     confidence_level, assessment, positive_factors_json, negative_factors_json, confidence_reasons_json, port_prediction,
     port_confidence_level, port_reasons_json, official_criteria_status_json, summary, forecast_summary_json, ai_status,
     error_message, gemini_model, gemini_summary_model, ai_provider, ai_summary_provider, prompt_version, created_at)
@@ -142,7 +142,7 @@ export async function readLatestAiBackfill(db: D1Database, retryRunId?: string):
 }
 
 export async function updateAiBackfill(db: D1Database, runId: string, serviceId: string, result: PersistableAssessment): Promise<void> {
-  await db.prepare(`UPDATE ai_predictions SET evaluation_grade=?, confidence_level=?, assessment=?,
+  await db.prepare(`UPDATE ai_predictions SET evaluation_rating=?, confidence_level=?, assessment=?,
     positive_factors_json=?, negative_factors_json=?, confidence_reasons_json=?, port_prediction=?, summary=?,
     port_confidence_level=?, port_reasons_json=?, official_criteria_status_json=?, forecast_summary_json=?, ai_status=?,
     error_message=?, gemini_model=?, gemini_summary_model=?, ai_provider=?, ai_summary_provider=?, prompt_version=?
@@ -214,7 +214,7 @@ interface PredictionViewRow {
 }
 
 const LATEST_PREDICTION_SELECT = `SELECT s.id AS service_id, s.service_date, s.service_number, s.ship_type,
-  s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.evaluation_grade, a.confidence_level,
+  s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.evaluation_rating AS evaluation_grade, a.confidence_level,
   a.assessment, a.port_prediction, a.port_confidence_level, a.port_reasons_json, a.official_criteria_status_json,
   a.summary, a.ai_status, a.created_at AS prediction_created_at,
   os.status AS official_status, os.port AS official_port, os.note AS official_note,
@@ -238,7 +238,7 @@ export async function readDays(db: D1Database, fromDate: string, days = 5): Prom
 export async function readService(db: D1Database, serviceId: string): Promise<unknown | null> {
   const service = await db.prepare(`${LATEST_PREDICTION_SELECT} WHERE s.id = ?`).bind(serviceId).first<PredictionViewRow>();
   if (!service) return null;
-  const predictions = await db.prepare(`SELECT evaluation_grade, confidence_level, port_prediction, created_at
+  const predictions = await db.prepare(`SELECT evaluation_rating AS evaluation_grade, confidence_level, port_prediction, created_at
     FROM ai_predictions WHERE service_id = ? ORDER BY created_at DESC LIMIT 2`).bind(serviceId).all<{
       evaluation_grade: string | null; confidence_level: number | null; port_prediction: string | null; created_at: string;
     }>();

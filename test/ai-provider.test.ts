@@ -4,7 +4,7 @@ import { assessBatchWithProviderFallback } from "../src/ai/provider.js";
 import { compactJudgmentInput, GROQ_MODELS } from "../src/groq/client.js";
 
 const summary = { risk_level: "low", model_agreement: "high", key_signals: ["低リスク"], rough_conditions: [], peak_conditions: [], trends: [], previous_changes: [], missing_data: [], numerical_summary: "低リスク" };
-const assessment = { evaluation_grade: "A", confidence_level: 4, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "不明", port_confidence_level: 1, port_reasons: ["判断材料不足"], summary: "運航可能性が高い" };
+const assessment = { evaluation_grade: "S", confidence_level: 4, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "不明", port_confidence_level: 1, port_reasons: ["判断材料不足"], summary: "運航可能性が高い" };
 
 function groq(value: unknown, promptTokens: number, completionTokens: number) {
   return Response.json({ choices: [{ message: { content: JSON.stringify(value) } }], usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: promptTokens + completionTokens } });

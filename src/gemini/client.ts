@@ -3,16 +3,16 @@ export const GEMINI_MODEL_CHAINS = {
   summary: ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
   final: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 } as const;
-export const PROMPT_VERSION = "assessment-v8-japanese-output";
+export const PROMPT_VERSION = "assessment-v9-sabcd";
 
 export interface ForecastSummary { risk_level: "low" | "medium" | "high"; model_agreement: "high" | "medium" | "low"; key_signals: string[]; rough_conditions: string[]; peak_conditions: string[]; trends: string[]; previous_changes: string[]; missing_data: string[]; numerical_summary: string }
 export interface OfficialCriterionStatus { criterion: string; forecast: number; threshold: number; unit: string; status: "below" | "near" | "reached" }
-export interface FinalAssessment { evaluation_grade: "A" | "B" | "C" | "D" | "E"; confidence_level: 1 | 2 | 3 | 4 | 5; assessment: string; positive_factors: string[]; negative_factors: string[]; confidence_reasons: string[]; official_criteria_status: OfficialCriterionStatus[]; port_prediction: "元町" | "岡田" | "不明"; port_confidence_level: 1 | 2 | 3 | 4 | 5; port_reasons: string[]; summary: string }
+export interface FinalAssessment { evaluation_grade: "S" | "A" | "B" | "C" | "D"; confidence_level: 1 | 2 | 3 | 4 | 5; assessment: string; positive_factors: string[]; negative_factors: string[]; confidence_reasons: string[]; official_criteria_status: OfficialCriterionStatus[]; port_prediction: "元町" | "岡田" | "不明"; port_confidence_level: 1 | 2 | 3 | 4 | 5; port_reasons: string[]; summary: string }
 
 const stringList = { type: "ARRAY", items: { type: "STRING" } };
 const summarySchema = { type: "OBJECT", properties: { risk_level: { type: "STRING", enum: ["low", "medium", "high"] }, model_agreement: { type: "STRING", enum: ["high", "medium", "low"] }, key_signals: stringList, rough_conditions: stringList, peak_conditions: stringList, trends: stringList, previous_changes: stringList, missing_data: stringList, numerical_summary: { type: "STRING" } }, required: ["risk_level", "model_agreement", "key_signals", "rough_conditions", "peak_conditions", "trends", "previous_changes", "missing_data", "numerical_summary"] };
 const criterionSchema = { type: "OBJECT", properties: { criterion: { type: "STRING" }, forecast: { type: "NUMBER" }, threshold: { type: "NUMBER" }, unit: { type: "STRING" }, status: { type: "STRING", enum: ["below", "near", "reached"] } }, required: ["criterion", "forecast", "threshold", "unit", "status"] };
-const finalSchema = { type: "OBJECT", properties: { evaluation_grade: { type: "STRING", enum: ["A", "B", "C", "D", "E"] }, confidence_level: { type: "INTEGER", minimum: 1, maximum: 5 }, assessment: { type: "STRING" }, positive_factors: stringList, negative_factors: stringList, confidence_reasons: stringList, official_criteria_status: { type: "ARRAY", items: criterionSchema }, port_prediction: { type: "STRING", enum: ["元町", "岡田", "不明"] }, port_confidence_level: { type: "INTEGER", minimum: 1, maximum: 5 }, port_reasons: stringList, summary: { type: "STRING" } }, required: ["evaluation_grade", "confidence_level", "assessment", "positive_factors", "negative_factors", "confidence_reasons", "official_criteria_status", "port_prediction", "port_confidence_level", "port_reasons", "summary"] };
+const finalSchema = { type: "OBJECT", properties: { evaluation_grade: { type: "STRING", enum: ["S", "A", "B", "C", "D"] }, confidence_level: { type: "INTEGER", minimum: 1, maximum: 5 }, assessment: { type: "STRING" }, positive_factors: stringList, negative_factors: stringList, confidence_reasons: stringList, official_criteria_status: { type: "ARRAY", items: criterionSchema }, port_prediction: { type: "STRING", enum: ["元町", "岡田", "不明"] }, port_confidence_level: { type: "INTEGER", minimum: 1, maximum: 5 }, port_reasons: stringList, summary: { type: "STRING" } }, required: ["evaluation_grade", "confidence_level", "assessment", "positive_factors", "negative_factors", "confidence_reasons", "official_criteria_status", "port_prediction", "port_confidence_level", "port_reasons", "summary"] };
 const batchSummarySchema = { type: "OBJECT", properties: { services: { type: "ARRAY", items: { type: "OBJECT", properties: { service_id: { type: "STRING" }, ...summarySchema.properties }, required: ["service_id", ...summarySchema.required] } } }, required: ["services"] };
 const batchFinalSchema = { type: "OBJECT", properties: { services: { type: "ARRAY", items: { type: "OBJECT", properties: { service_id: { type: "STRING" }, ...finalSchema.properties }, required: ["service_id", ...finalSchema.required] } } }, required: ["services"] };
 
@@ -33,7 +33,7 @@ export function validateForecastSummary(value: unknown): ForecastSummary {
 export function validateAssessment(value: unknown): FinalAssessment {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Gemini assessment is not an object");
   const v = value as Record<string, unknown>;
-  if (!["A", "B", "C", "D", "E"].includes(String(v.evaluation_grade))) throw new Error("Invalid evaluation_grade");
+  if (!["S", "A", "B", "C", "D"].includes(String(v.evaluation_grade))) throw new Error("Invalid evaluation_grade");
   for (const key of ["confidence_level", "port_confidence_level"]) if (!Number.isInteger(v[key]) || (v[key] as number) < 1 || (v[key] as number) > 5) throw new Error(`Invalid ${key}`);
   for (const key of ["assessment", "summary"]) if (typeof v[key] !== "string") throw new Error(`Invalid ${key}`);
   if (!["元町", "岡田", "不明"].includes(String(v.port_prediction))) throw new Error("Invalid port_prediction");
@@ -116,7 +116,7 @@ export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string;
 const FINAL_RULES = `伊豆大島航路の最終総合判断を行ってください。判断順序は、欠損、便・船種・航路・時刻、東海汽船公式基準、ML欠航リスク、出発港、航路、入港地点、3/6時間変化、中村氏の公開経験則、複数モデル差、前回差、就航見込み、確信度、港予測、根拠です。
 説明文、assessment、summary、各要因、確信度の根拠、港予測の根拠は自然な日本語で記述してください。モデル名、単位、正式な識別子を除き、英語の文章や語句を出力しないでください。
 公式基準・中村氏公開経験則・過去実績ML・現在の複数予報を別レイヤーのまま確認してから総合してください。ML cancellation_probability は過去の類似条件における気象欠航傾向であり、1-MLやモデル平均をそのまま最終就航見込みにしてはいけません。モデル差を平均で消してはいけません。
-入力にない数値、因果、経験則を作らないでください。公式基準と中村氏目安を混同せず、ジェットと大型船、東京航路と熱海等を同じ閾値で扱わないでください。公式基準到達予報は非常に強い欠航材料ですが、未来予報だけで評価を決めないでください。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはA=就航の可能性が高い、B=就航寄り、C=判断が分かれる、D=欠航寄り、E=欠航の可能性が高いです。confidence_levelはその評価を現時点で信頼できる度合いで、5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。予報先が遠い、モデル不一致、欠損、前回急変、基準ぎりぎりではconfidence_levelを下げてください。
+入力にない数値、因果、経験則を作らないでください。公式基準と中村氏目安を混同せず、ジェットと大型船、東京航路と熱海等を同じ閾値で扱わないでください。公式基準到達予報は非常に強い欠航材料ですが、未来予報だけで評価を決めないでください。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはS=就航の可能性が高い、A=就航寄り、B=判断が分かれる、C=欠航寄り、D=欠航の可能性が高いです。confidence_levelはその評価を現時点で信頼できる度合いで、5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。予報先が遠い、モデル不一致、欠損、前回急変、基準ぎりぎりではconfidence_levelを下げてください。
 official_criteria_statusには入力中のofficialCriteriaから判断に実際に使った項目だけを、forecast/threshold/unitを変更せず転記してください。入力のnear_internalは内部距離であり、公式警戒基準とは表現せずstatusはnearとしてください。港を根拠付きで判断できない場合は不明、port_confidence_levelは1、port_reasonsに不足情報を書いてください。港予測にも確率やパーセントを生成してはいけません。根拠文には可能な限りモデル名、地点・段階、値、単位、基準値を含めてください。`;
 
 function finalPrompt(input: unknown, summary: ForecastSummary): string {

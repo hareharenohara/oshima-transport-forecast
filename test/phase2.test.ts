@@ -4,7 +4,7 @@ import { compareModels } from "../src/forecast/model-comparison.js";
 import { assessBatchWithFallback, assessWithFallback, validateAssessment, validateForecastSummary } from "../src/gemini/client.js";
 
 const summary = (extra: Record<string, unknown> = {}) => ({ risk_level: "low", model_agreement: "high", key_signals: ["低リスク"], rough_conditions: [], peak_conditions: [], trends: [], previous_changes: [], missing_data: [], numerical_summary: "平均1%", ...extra });
-const assessment = (extra: Record<string, unknown> = {}) => ({ evaluation_grade: "A", confidence_level: 4, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "不明", port_confidence_level: 1, port_reasons: ["港判断材料不足"], summary: "運航可能性が高い", ...extra });
+const assessment = (extra: Record<string, unknown> = {}) => ({ evaluation_grade: "S", confidence_level: 4, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "不明", port_confidence_level: 1, port_reasons: ["港判断材料不足"], summary: "運航可能性が高い", ...extra });
 const candidate = (value: unknown) => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(value) }] } }] });
 
 test("compares forecast models", () => { const result = compareModels([{ model: "MSM", value: 10 }, { model: "ECMWF", value: 12 }, { model: "GFS", value: 11 }], 2, 5); assert.equal(result.mean, 11); assert.equal(result.agreement, "high"); });
@@ -15,7 +15,7 @@ test("runs Gemini summary before final assessment", async () => {
   const called: string[] = [];
   let japaneseInstructionCount = 0;
   const result = await assessWithFallback({ officialCriteria: [] }, { predictions: [] }, "x", async (input, init) => { const url = String(input); called.push(url); if (String(init?.body).includes("自然な日本語")) japaneseInstructionCount++; return candidate(url.includes("flash-lite") ? summary() : assessment()); });
-  assert.equal(result.aiStatus, "generated"); assert.equal(result.ai?.evaluation_grade, "A"); assert.match(called[0]!, /gemini-3\.5-flash-lite/); assert.match(called[1]!, /gemini-3\.8-flash/);
+  assert.equal(result.aiStatus, "generated"); assert.equal(result.ai?.evaluation_grade, "S"); assert.match(called[0]!, /gemini-3\.5-flash-lite/); assert.match(called[1]!, /gemini-3\.8-flash/);
   assert.equal(japaneseInstructionCount, 2);
 });
 test("preserves summary when final Gemini is unavailable", async () => {
@@ -39,4 +39,4 @@ test("uses 3.5 Flash-Lite as final fallback", async () => {
   let summarized = false; const result = await assessBatchWithFallback([{ serviceId: "a", input: {}, ml: {} }], "x", async (input) => { const model = String(input).match(/models\/([^:]+)/)?.[1] ?? ""; if (!summarized && model === "gemini-3.5-flash-lite") { summarized = true; return candidate({ services: [{ service_id: "a", ...summary() }] }); } return model === "gemini-3.5-flash-lite" ? candidate({ services: [{ service_id: "a", ...assessment() }] }) : new Response("capacity", { status: 503 }); });
   assert.equal(result[0]?.geminiModels.final, "gemini-3.5-flash-lite");
 });
-test("accepts ordinal boundaries and rejects invalid values", () => { assert.equal(validateAssessment(assessment({ evaluation_grade: "E", confidence_level: 1, port_confidence_level: 5 })).evaluation_grade, "E"); assert.throws(() => validateAssessment(assessment({ evaluation_grade: "F" })), /evaluation_grade/); assert.throws(() => validateAssessment(assessment({ confidence_level: 6 })), /confidence_level/); });
+test("accepts ordinal boundaries and rejects invalid values", () => { assert.equal(validateAssessment(assessment({ evaluation_grade: "D", confidence_level: 1, port_confidence_level: 5 })).evaluation_grade, "D"); assert.throws(() => validateAssessment(assessment({ evaluation_grade: "E" })), /evaluation_grade/); assert.throws(() => validateAssessment(assessment({ confidence_level: 6 })), /confidence_level/); });

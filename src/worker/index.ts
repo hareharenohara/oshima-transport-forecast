@@ -101,6 +101,7 @@ export async function handleRequest(request: Request, fetchFn: typeof fetch = fe
   if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS}`
     .replace("if(row.operation_probability!=null)return Number(row.operation_probability);", "")
     .replaceAll("予測推移", "ML参考値の推移")
+    .replace("['E','D','C','B','A']", "['D','C','B','A','S']")
     .replace("#detail .detail-grid", "#detail .ml-reference"), "text/javascript; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(PWA_SETTINGS_JS, "text/javascript; charset=utf-8", "no-cache");
