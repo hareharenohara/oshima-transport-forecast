@@ -3,7 +3,7 @@ export const GEMINI_MODEL_CHAINS = {
   summary: ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
   final: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 } as const;
-export const PROMPT_VERSION = "assessment-v7-ordinal-grade";
+export const PROMPT_VERSION = "assessment-v8-japanese-output";
 
 export interface ForecastSummary { risk_level: "low" | "medium" | "high"; model_agreement: "high" | "medium" | "low"; key_signals: string[]; rough_conditions: string[]; peak_conditions: string[]; trends: string[]; previous_changes: string[]; missing_data: string[]; numerical_summary: string }
 export interface OfficialCriterionStatus { criterion: string; forecast: number; threshold: number; unit: string; status: "below" | "near" | "reached" }
@@ -97,7 +97,7 @@ async function generateStructured<T>(model: string, prompt: string, schema: obje
 }
 
 export function generateForecastSummary(input: unknown, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.summary, retry = true): Promise<ForecastSummary> {
-  return generateStructured(model, `伊豆大島航路の予報情報だけを整理してください。就航見込みは決定しないでください。入力に存在する数値と固定知識だけを使用し、どの地点・航行段階が荒れるか、ピーク時間、風・波・うねりの3時間/6時間変化、モデル一致度、前回差、欠損を具体的な数値と単位付きで記述してください。平均だけでモデル差を隠さず、欠損・視程未取得を推測しないでください。\n入力:\n${JSON.stringify(input)}`, summarySchema, validateForecastSummary, apiKey, fetchFn, retry);
+  return generateStructured(model, `伊豆大島航路の予報情報だけを整理してください。就航見込みは決定しないでください。入力に存在する数値と固定知識だけを使用し、どの地点・航行段階が荒れるか、ピーク時間、風・波・うねりの3時間/6時間変化、モデル一致度、前回差、欠損を具体的な数値と単位付きで記述してください。平均だけでモデル差を隠さず、欠損・視程未取得を推測しないでください。説明文、要約、要因、根拠は自然な日本語で記述してください。モデル名、単位、正式な識別子を除き、英語の文章や語句を出力しないでください。\n入力:\n${JSON.stringify(input)}`, summarySchema, validateForecastSummary, apiKey, fetchFn, retry);
 }
 
 export function generateFinalAssessment(input: unknown, summary: ForecastSummary, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.final, retry = true): Promise<FinalAssessment> {
@@ -105,7 +105,7 @@ export function generateFinalAssessment(input: unknown, summary: ForecastSummary
 }
 
 export function generateBatchForecastSummaries(inputs: Array<{ serviceId: string; input: unknown }>, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.summary) {
-  return generateStructured(model, `伊豆大島航路の複数便について予報情報だけを整理してください。各service_idを保持し、就航見込みは決定しないでください。入力に存在する数値と固定知識だけを使い、荒れている地点・航行段階、ピーク、風・波・うねりの変化、モデル一致度、前回差、欠損を数値と単位付きで記述してください。平均だけでモデル差を隠さず、欠損や視程を推測しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn, false);
+  return generateStructured(model, `伊豆大島航路の複数便について予報情報だけを整理してください。各service_idを保持し、就航見込みは決定しないでください。入力に存在する数値と固定知識だけを使い、荒れている地点・航行段階、ピーク、風・波・うねりの変化、モデル一致度、前回差、欠損を数値と単位付きで記述してください。平均だけでモデル差を隠さず、欠損や視程を推測しないでください。説明文、要約、要因、根拠は自然な日本語で記述してください。モデル名、単位、正式な識別子を除き、英語の文章や語句を出力しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn, false);
 }
 
 export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string; input: unknown }>, summaries: Array<{ serviceId: string; value: ForecastSummary }>, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.final) {
@@ -114,6 +114,7 @@ export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string;
 }
 
 const FINAL_RULES = `伊豆大島航路の最終総合判断を行ってください。判断順序は、欠損、便・船種・航路・時刻、東海汽船公式基準、ML欠航リスク、出発港、航路、入港地点、3/6時間変化、中村氏の公開経験則、複数モデル差、前回差、就航見込み、確信度、港予測、根拠です。
+説明文、assessment、summary、各要因、確信度の根拠、港予測の根拠は自然な日本語で記述してください。モデル名、単位、正式な識別子を除き、英語の文章や語句を出力しないでください。
 公式基準・中村氏公開経験則・過去実績ML・現在の複数予報を別レイヤーのまま確認してから総合してください。ML cancellation_probability は過去の類似条件における気象欠航傾向であり、1-MLやモデル平均をそのまま最終就航見込みにしてはいけません。モデル差を平均で消してはいけません。
 入力にない数値、因果、経験則を作らないでください。公式基準と中村氏目安を混同せず、ジェットと大型船、東京航路と熱海等を同じ閾値で扱わないでください。公式基準到達予報は非常に強い欠航材料ですが、未来予報だけで評価を決めないでください。AIの最終判断に確率やパーセントを生成してはいけません。evaluation_gradeはA=就航の可能性が高い、B=就航寄り、C=判断が分かれる、D=欠航寄り、E=欠航の可能性が高いです。confidence_levelはその評価を現時点で信頼できる度合いで、5=非常に高い、4=高い、3=中程度、2=低い、1=非常に低いです。予報先が遠い、モデル不一致、欠損、前回急変、基準ぎりぎりではconfidence_levelを下げてください。
 official_criteria_statusには入力中のofficialCriteriaから判断に実際に使った項目だけを、forecast/threshold/unitを変更せず転記してください。入力のnear_internalは内部距離であり、公式警戒基準とは表現せずstatusはnearとしてください。港を根拠付きで判断できない場合は不明、port_confidence_levelは1、port_reasonsに不足情報を書いてください。港予測にも確率やパーセントを生成してはいけません。根拠文には可能な限りモデル名、地点・段階、値、単位、基準値を含めてください。`;

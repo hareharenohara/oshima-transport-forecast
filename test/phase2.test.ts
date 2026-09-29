@@ -13,8 +13,10 @@ test("validates structured summary", () => assert.equal(validateForecastSummary(
 test("rejects missing grounding fields", () => assert.throws(() => validateAssessment({ evaluation_grade: "C", confidence_level: 3 }), /port_confidence_level|assessment/));
 test("runs Gemini summary before final assessment", async () => {
   const called: string[] = [];
-  const result = await assessWithFallback({ officialCriteria: [] }, { predictions: [] }, "x", async (input) => { const url = String(input); called.push(url); return candidate(url.includes("flash-lite") ? summary() : assessment()); });
+  let japaneseInstructionCount = 0;
+  const result = await assessWithFallback({ officialCriteria: [] }, { predictions: [] }, "x", async (input, init) => { const url = String(input); called.push(url); if (String(init?.body).includes("自然な日本語")) japaneseInstructionCount++; return candidate(url.includes("flash-lite") ? summary() : assessment()); });
   assert.equal(result.aiStatus, "generated"); assert.equal(result.ai?.evaluation_grade, "A"); assert.match(called[0]!, /gemini-3\.5-flash-lite/); assert.match(called[1]!, /gemini-3\.8-flash/);
+  assert.equal(japaneseInstructionCount, 2);
 });
 test("preserves summary when final Gemini is unavailable", async () => {
   let calls = 0; const result = await assessWithFallback({}, { predictions: [] }, "x", async () => ++calls === 1 ? candidate(summary({ risk_level: "medium" })) : new Response("unavailable", { status: 503 }));

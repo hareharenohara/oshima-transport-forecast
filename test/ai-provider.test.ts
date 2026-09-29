@@ -16,7 +16,9 @@ function gemini(value: unknown) {
 
 test("uses Groq summary and gpt-oss-120b final before Gemini", async () => {
   const items = [{ serviceId: "a", input: { officialCriteria: [], officialKnowledge: { large: "omitted" }, forecasts: {} }, ml: { cancellationProbability: 0.1 } }];
+  let japaneseInstructionCount = 0;
   const result = await assessBatchWithProviderFallback(items, { groqApiKey: "g", geminiApiKey: "m" }, async (_input, init) => {
+    if (String(init?.body).includes("自然な日本語")) japaneseInstructionCount++;
     const body = JSON.parse(String(init?.body)) as { model: string };
     return body.model === GROQ_MODELS.summary
       ? groq({ services: [{ service_id: "a", ...summary }] }, 100, 20)
@@ -25,6 +27,7 @@ test("uses Groq summary and gpt-oss-120b final before Gemini", async () => {
   assert.equal(result[0]?.aiStatus, "generated");
   assert.equal(result[0]?.aiProviders.final, "groq");
   assert.equal(result[0]?.geminiModels.final, "openai/gpt-oss-120b");
+  assert.equal(japaneseInstructionCount, 2);
   assert.deepEqual(result[0]?.aiAudit.attempts.map((item) => [item.provider, item.model, item.totalTokens]), [
     ["groq", "openai/gpt-oss-20b", 120], ["groq", "openai/gpt-oss-120b", 150]
   ]);
