@@ -4,7 +4,7 @@ import { buildServiceForecastSeries } from "../forecast/service-series.js";
 import { fetchOfficialStatuses, OFFICIAL_STATUS_URL } from "../schedule/official-status.js";
 import { BundledOfficialScheduleProvider } from "../schedule/bundled.js";
 import { syncSchedule } from "../schedule/sync.js";
-import { acquireRun, finishRun, logRun, saveAssessment, saveForecastSeries, saveOfficialStatuses, upcomingServices } from "../storage/d1.js";
+import { acquireRun, finishRun, logRun, readPreviousPredictionContexts, saveAssessment, saveForecastSeries, saveOfficialStatuses, upcomingServices } from "../storage/d1.js";
 import { notifyPredictionChanges } from "../notifications/push.js";
 
 export interface ScheduledEnv { DB: D1Database; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
@@ -38,7 +38,8 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
     const services = await upcomingServices(env.DB, now);
     targetCount = services.length;
     const sources = services.length > 0 ? await fetchMultiModelSources(fetchFn) : undefined;
-    const batch = await assessServicesBatch(services, env.GEMINI_API_KEY, fetchFn, sources);
+    const previous = await readPreviousPredictionContexts(env.DB, services.map((service) => service.serviceId));
+    const batch = await assessServicesBatch(services, env.GEMINI_API_KEY, fetchFn, sources, previous);
     await logRun(env.DB, run.id, "info", "gemini_batch", undefined, `${batch.assessed.length} services, ${env.GEMINI_API_KEY && batch.assessed.length ? "2 calls attempted" : "0 calls"}`);
     for (const failure of batch.failures) {
       errorCount++;

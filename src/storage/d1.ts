@@ -2,6 +2,7 @@ import type { ServiceInput } from "../types.js";
 import type { FinalAssessment, ForecastSummary } from "../gemini/client.js";
 import type { ServiceForecastSeries } from "../forecast/service-series.js";
 import type { OfficialServiceStatus } from "../schedule/official-status.js";
+import type { PreviousPredictionContext } from "../forecast/judgment-context.js";
 
 export interface StoredServiceRow {
   id: string;
@@ -47,6 +48,23 @@ export async function upcomingServices(db: D1Database, now: Date, horizonDays = 
   }));
 }
 
+export async function readPreviousPredictionContexts(db: D1Database, serviceIds: string[]): Promise<Map<string, PreviousPredictionContext>> {
+  if (!serviceIds.length) return new Map();
+  const placeholders = serviceIds.map(() => "?").join(",");
+  const rows = await db.prepare(`SELECT a.service_id, a.operation_probability, a.confidence, a.port_prediction, a.created_at
+    FROM ai_predictions a WHERE a.service_id IN (${placeholders}) AND a.ai_status='generated'
+      AND a.created_at=(SELECT MAX(previous.created_at) FROM ai_predictions previous
+        WHERE previous.service_id=a.service_id AND previous.ai_status='generated')`).bind(...serviceIds).all<{
+          service_id: string; operation_probability: number | null; confidence: number | null; port_prediction: string | null; created_at: string;
+        }>();
+  return new Map(rows.results.map((row) => [row.service_id, {
+    operationProbability: row.operation_probability,
+    confidence: row.confidence,
+    portPrediction: row.port_prediction,
+    createdAt: row.created_at
+  }]));
+}
+
 interface PersistableAssessment {
   ml: { predictions: Array<{ cancellationProbability: number; weatherModel: string; marineModel: string }> };
   forecastSummary: ForecastSummary | null;
@@ -68,11 +86,13 @@ export async function saveAssessment(db: D1Database, runId: string, serviceId: s
   const ai = result.ai;
   statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, operation_probability,
     confidence, assessment, positive_factors_json, negative_factors_json, confidence_reasons_json, port_prediction,
-    summary, forecast_summary_json, ai_status, error_message, gemini_model, gemini_summary_model, prompt_version, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+    port_confidence, port_reasons_json, official_criteria_status_json, summary, forecast_summary_json, ai_status,
+    error_message, gemini_model, gemini_summary_model, prompt_version, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
       crypto.randomUUID(), runId, serviceId, ai?.operation_probability ?? null, ai?.confidence ?? null,
       ai?.assessment ?? null, JSON.stringify(ai?.positive_factors ?? []), JSON.stringify(ai?.negative_factors ?? []),
-      JSON.stringify(ai?.confidence_reasons ?? []), ai?.port_prediction ?? null, ai?.summary ?? null,
+      JSON.stringify(ai?.confidence_reasons ?? []), ai?.port_prediction ?? null, ai?.port_confidence ?? null,
+      JSON.stringify(ai?.port_reasons ?? []), JSON.stringify(ai?.official_criteria_status ?? []), ai?.summary ?? null,
       result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus,
       result.error ?? null, result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null, result.promptVersion ?? null, createdAt
     ));
@@ -121,12 +141,14 @@ export async function readLatestAiBackfill(db: D1Database, retryRunId?: string):
 export async function updateAiBackfill(db: D1Database, runId: string, serviceId: string, result: PersistableAssessment): Promise<void> {
   await db.prepare(`UPDATE ai_predictions SET operation_probability=?, confidence=?, assessment=?,
     positive_factors_json=?, negative_factors_json=?, confidence_reasons_json=?, port_prediction=?, summary=?,
-    forecast_summary_json=?, ai_status=?, error_message=?, gemini_model=?, gemini_summary_model=?, prompt_version=?
+    port_confidence=?, port_reasons_json=?, official_criteria_status_json=?, forecast_summary_json=?, ai_status=?,
+    error_message=?, gemini_model=?, gemini_summary_model=?, prompt_version=?
     WHERE forecast_run_id=? AND service_id=?`).bind(
       result.ai?.operation_probability ?? null, result.ai?.confidence ?? null, result.ai?.assessment ?? null,
       JSON.stringify(result.ai?.positive_factors ?? []), JSON.stringify(result.ai?.negative_factors ?? []),
       JSON.stringify(result.ai?.confidence_reasons ?? []), result.ai?.port_prediction ?? null, result.ai?.summary ?? null,
-      result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus, result.error ?? null,
+      result.ai?.port_confidence ?? null, JSON.stringify(result.ai?.port_reasons ?? []),
+      JSON.stringify(result.ai?.official_criteria_status ?? []), result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus, result.error ?? null,
       result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null, result.promptVersion ?? null, runId, serviceId
     ).run();
 }
@@ -173,6 +195,9 @@ interface PredictionViewRow {
   confidence: number | null;
   assessment: string | null;
   port_prediction: string | null;
+  port_confidence: number | null;
+  port_reasons_json: string | null;
+  official_criteria_status_json: string | null;
   summary: string | null;
   ai_status: string | null;
   prediction_created_at: string | null;
@@ -186,7 +211,8 @@ interface PredictionViewRow {
 
 const LATEST_PREDICTION_SELECT = `SELECT s.id AS service_id, s.service_date, s.service_number, s.ship_type,
   s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.operation_probability, a.confidence,
-  a.assessment, a.port_prediction, a.summary, a.ai_status, a.created_at AS prediction_created_at,
+  a.assessment, a.port_prediction, a.port_confidence, a.port_reasons_json, a.official_criteria_status_json,
+  a.summary, a.ai_status, a.created_at AS prediction_created_at,
   os.status AS official_status, os.port AS official_port, os.note AS official_note,
   os.source_updated_at AS official_source_updated_at, os.official_source,
   (SELECT AVG(m.operation_probability) FROM ml_predictions m
@@ -237,11 +263,15 @@ export async function readHistory(db: D1Database, serviceId: string): Promise<un
     positive_factors: JSON.parse(String(row.positive_factors_json)),
     negative_factors: JSON.parse(String(row.negative_factors_json)),
     confidence_reasons: JSON.parse(String(row.confidence_reasons_json)),
+    port_reasons: JSON.parse(String(row.port_reasons_json ?? "[]")),
+    official_criteria_status: JSON.parse(String(row.official_criteria_status_json ?? "[]")),
     forecast_summary: row.forecast_summary_json ? JSON.parse(String(row.forecast_summary_json)) : null,
     ml_predictions: JSON.parse(String(row.ml_predictions_json)),
     positive_factors_json: undefined,
     negative_factors_json: undefined,
     confidence_reasons_json: undefined,
+    port_reasons_json: undefined,
+    official_criteria_status_json: undefined,
     forecast_summary_json: undefined,
     ml_predictions_json: undefined
   }));

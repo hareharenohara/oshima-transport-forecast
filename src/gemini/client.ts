@@ -3,13 +3,16 @@ export const GEMINI_MODEL_CHAINS = {
   summary: ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
   final: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 } as const;
-export const PROMPT_VERSION = "assessment-v4-model-fallback";
+export const PROMPT_VERSION = "assessment-v5-grounded-criteria";
 
-export interface ForecastSummary { risk_level: "low" | "medium" | "high"; model_agreement: "high" | "medium" | "low"; key_signals: string[]; missing_data: string[]; numerical_summary: string }
-export interface FinalAssessment { operation_probability: number; confidence: number; assessment: string; positive_factors: string[]; negative_factors: string[]; confidence_reasons: string[]; port_prediction: "元町" | "岡田" | "不明"; summary: string }
+export interface ForecastSummary { risk_level: "low" | "medium" | "high"; model_agreement: "high" | "medium" | "low"; key_signals: string[]; rough_conditions: string[]; peak_conditions: string[]; trends: string[]; previous_changes: string[]; missing_data: string[]; numerical_summary: string }
+export interface OfficialCriterionStatus { criterion: string; forecast: number; threshold: number; unit: string; status: "below" | "near" | "reached" }
+export interface FinalAssessment { operation_probability: number; confidence: number; assessment: string; positive_factors: string[]; negative_factors: string[]; confidence_reasons: string[]; official_criteria_status: OfficialCriterionStatus[]; port_prediction: "元町" | "岡田" | "不明"; port_confidence: number; port_reasons: string[]; summary: string }
 
-const summarySchema = { type: "OBJECT", properties: { risk_level: { type: "STRING", enum: ["low", "medium", "high"] }, model_agreement: { type: "STRING", enum: ["high", "medium", "low"] }, key_signals: { type: "ARRAY", items: { type: "STRING" } }, missing_data: { type: "ARRAY", items: { type: "STRING" } }, numerical_summary: { type: "STRING" } }, required: ["risk_level", "model_agreement", "key_signals", "missing_data", "numerical_summary"] };
-const finalSchema = { type: "OBJECT", properties: { operation_probability: { type: "INTEGER", minimum: 0, maximum: 100 }, confidence: { type: "INTEGER", minimum: 0, maximum: 100 }, assessment: { type: "STRING" }, positive_factors: { type: "ARRAY", items: { type: "STRING" } }, negative_factors: { type: "ARRAY", items: { type: "STRING" } }, confidence_reasons: { type: "ARRAY", items: { type: "STRING" } }, port_prediction: { type: "STRING", enum: ["元町", "岡田", "不明"] }, summary: { type: "STRING" } }, required: ["operation_probability", "confidence", "assessment", "positive_factors", "negative_factors", "confidence_reasons", "port_prediction", "summary"] };
+const stringList = { type: "ARRAY", items: { type: "STRING" } };
+const summarySchema = { type: "OBJECT", properties: { risk_level: { type: "STRING", enum: ["low", "medium", "high"] }, model_agreement: { type: "STRING", enum: ["high", "medium", "low"] }, key_signals: stringList, rough_conditions: stringList, peak_conditions: stringList, trends: stringList, previous_changes: stringList, missing_data: stringList, numerical_summary: { type: "STRING" } }, required: ["risk_level", "model_agreement", "key_signals", "rough_conditions", "peak_conditions", "trends", "previous_changes", "missing_data", "numerical_summary"] };
+const criterionSchema = { type: "OBJECT", properties: { criterion: { type: "STRING" }, forecast: { type: "NUMBER" }, threshold: { type: "NUMBER" }, unit: { type: "STRING" }, status: { type: "STRING", enum: ["below", "near", "reached"] } }, required: ["criterion", "forecast", "threshold", "unit", "status"] };
+const finalSchema = { type: "OBJECT", properties: { operation_probability: { type: "INTEGER", minimum: 0, maximum: 100 }, confidence: { type: "INTEGER", minimum: 0, maximum: 100 }, assessment: { type: "STRING" }, positive_factors: stringList, negative_factors: stringList, confidence_reasons: stringList, official_criteria_status: { type: "ARRAY", items: criterionSchema }, port_prediction: { type: "STRING", enum: ["元町", "岡田", "不明"] }, port_confidence: { type: "INTEGER", minimum: 0, maximum: 100 }, port_reasons: stringList, summary: { type: "STRING" } }, required: ["operation_probability", "confidence", "assessment", "positive_factors", "negative_factors", "confidence_reasons", "official_criteria_status", "port_prediction", "port_confidence", "port_reasons", "summary"] };
 const batchSummarySchema = { type: "OBJECT", properties: { services: { type: "ARRAY", items: { type: "OBJECT", properties: { service_id: { type: "STRING" }, ...summarySchema.properties }, required: ["service_id", ...summarySchema.required] } } }, required: ["services"] };
 const batchFinalSchema = { type: "OBJECT", properties: { services: { type: "ARRAY", items: { type: "OBJECT", properties: { service_id: { type: "STRING" }, ...finalSchema.properties }, required: ["service_id", ...finalSchema.required] } } }, required: ["services"] };
 
@@ -24,16 +27,36 @@ export function validateForecastSummary(value: unknown): ForecastSummary {
   if (!["low", "medium", "high"].includes(String(v.risk_level))) throw new Error("Invalid risk_level");
   if (!["high", "medium", "low"].includes(String(v.model_agreement))) throw new Error("Invalid model_agreement");
   if (typeof v.numerical_summary !== "string") throw new Error("Invalid numerical_summary");
-  return { risk_level: v.risk_level as ForecastSummary["risk_level"], model_agreement: v.model_agreement as ForecastSummary["model_agreement"], key_signals: stringArray(v.key_signals, "key_signals"), missing_data: stringArray(v.missing_data, "missing_data"), numerical_summary: v.numerical_summary };
+  return { risk_level: v.risk_level as ForecastSummary["risk_level"], model_agreement: v.model_agreement as ForecastSummary["model_agreement"], key_signals: stringArray(v.key_signals, "key_signals"), rough_conditions: stringArray(v.rough_conditions, "rough_conditions"), peak_conditions: stringArray(v.peak_conditions, "peak_conditions"), trends: stringArray(v.trends, "trends"), previous_changes: stringArray(v.previous_changes, "previous_changes"), missing_data: stringArray(v.missing_data, "missing_data"), numerical_summary: v.numerical_summary };
 }
 
 export function validateAssessment(value: unknown): FinalAssessment {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Gemini assessment is not an object");
   const v = value as Record<string, unknown>;
-  for (const key of ["operation_probability", "confidence"]) if (!Number.isInteger(v[key]) || (v[key] as number) < 0 || (v[key] as number) > 100) throw new Error(`Invalid ${key}`);
+  for (const key of ["operation_probability", "confidence", "port_confidence"]) if (!Number.isInteger(v[key]) || (v[key] as number) < 0 || (v[key] as number) > 100) throw new Error(`Invalid ${key}`);
   for (const key of ["assessment", "summary"]) if (typeof v[key] !== "string") throw new Error(`Invalid ${key}`);
   if (!["元町", "岡田", "不明"].includes(String(v.port_prediction))) throw new Error("Invalid port_prediction");
-  return { operation_probability: v.operation_probability as number, confidence: v.confidence as number, assessment: v.assessment as string, positive_factors: stringArray(v.positive_factors, "positive_factors"), negative_factors: stringArray(v.negative_factors, "negative_factors"), confidence_reasons: stringArray(v.confidence_reasons, "confidence_reasons"), port_prediction: v.port_prediction as FinalAssessment["port_prediction"], summary: v.summary as string };
+  if (!Array.isArray(v.official_criteria_status)) throw new Error("Invalid official_criteria_status");
+  const official_criteria_status = v.official_criteria_status.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("Invalid official criterion");
+    const criterion = item as Record<string, unknown>;
+    if (typeof criterion.criterion !== "string" || typeof criterion.unit !== "string" || typeof criterion.forecast !== "number" || typeof criterion.threshold !== "number" || !["below", "near", "reached"].includes(String(criterion.status))) throw new Error("Invalid official criterion");
+    return { criterion: criterion.criterion, forecast: criterion.forecast, threshold: criterion.threshold, unit: criterion.unit, status: criterion.status as OfficialCriterionStatus["status"] };
+  });
+  return { operation_probability: v.operation_probability as number, confidence: v.confidence as number, assessment: v.assessment as string, positive_factors: stringArray(v.positive_factors, "positive_factors"), negative_factors: stringArray(v.negative_factors, "negative_factors"), confidence_reasons: stringArray(v.confidence_reasons, "confidence_reasons"), official_criteria_status, port_prediction: v.port_prediction as FinalAssessment["port_prediction"], port_confidence: v.port_confidence as number, port_reasons: stringArray(v.port_reasons, "port_reasons"), summary: v.summary as string };
+}
+
+function validateGrounding(assessment: FinalAssessment, input: unknown): FinalAssessment {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>).officialCriteria : undefined;
+  if (!Array.isArray(source)) return assessment;
+  const available = source.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).forecast === "number"));
+  const expectedStatus = (status: unknown) => status === "near_internal" ? "near" : status;
+  const matches = (reported: OfficialCriterionStatus, item: Record<string, unknown>) => reported.criterion === item.criterion && reported.unit === item.unit
+    && Math.abs(reported.forecast - Number(item.forecast)) < 1e-9 && Math.abs(reported.threshold - Number(item.threshold)) < 1e-9 && reported.status === expectedStatus(item.status);
+  if (assessment.official_criteria_status.some((reported) => !available.some((item) => matches(reported, item)))) throw new Error("official_criteria_status is not grounded in input");
+  const material = available.filter((item) => item.status === "near_internal" || item.status === "reached");
+  if (material.some((item) => !assessment.official_criteria_status.some((reported) => matches(reported, item)))) throw new Error("official_criteria_status omitted a material criterion");
+  return assessment;
 }
 
 function validateBatch<T>(value: unknown, validate: (item: unknown) => T): Array<{ serviceId: string; value: T }> {
@@ -72,20 +95,30 @@ async function generateStructured<T>(model: string, prompt: string, schema: obje
   catch (error) { throw new Error(`Gemini ${model} returned invalid structured output: ${error instanceof Error ? error.message : String(error)}`); }
 }
 
-export function generateForecastSummary(input: unknown, apiKey: string, fetchFn: typeof fetch = fetch): Promise<ForecastSummary> {
-  return generateStructured(GEMINI_MODELS.summary, `伊豆大島航路の予報比較を整理してください。入力中の数値だけを使い、欠損モデルを明記し、就航可否を最終判断しないでください。\n入力:\n${JSON.stringify(input)}`, summarySchema, validateForecastSummary, apiKey, fetchFn);
+export function generateForecastSummary(input: unknown, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.summary, retry = true): Promise<ForecastSummary> {
+  return generateStructured(model, `伊豆大島航路の予報情報だけを整理してください。就航見込みは決定しないでください。入力に存在する数値と固定知識だけを使用し、どの地点・航行段階が荒れるか、ピーク時間、風・波・うねりの3時間/6時間変化、モデル一致度、前回差、欠損を具体的な数値と単位付きで記述してください。平均だけでモデル差を隠さず、欠損・視程未取得を推測しないでください。\n入力:\n${JSON.stringify(input)}`, summarySchema, validateForecastSummary, apiKey, fetchFn, retry);
 }
 
-export function generateFinalAssessment(input: unknown, summary: ForecastSummary, apiKey: string, fetchFn: typeof fetch = fetch): Promise<FinalAssessment> {
-  return generateStructured(GEMINI_MODELS.final, `伊豆大島航路の予測補助として最終評価してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summary)}\n元入力:\n${JSON.stringify(input)}`, finalSchema, validateAssessment, apiKey, fetchFn);
+export function generateFinalAssessment(input: unknown, summary: ForecastSummary, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.final, retry = true): Promise<FinalAssessment> {
+  return generateStructured(model, finalPrompt(input, summary), finalSchema, (value) => validateGrounding(validateAssessment(value), input), apiKey, fetchFn, retry);
 }
 
 export function generateBatchForecastSummaries(inputs: Array<{ serviceId: string; input: unknown }>, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.summary) {
-  return generateStructured(model, `伊豆大島航路の複数便を一括整理してください。各service_idを保持し、入力中の数値だけを使い、欠損モデルを明記し、就航可否を最終判断しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn, false);
+  return generateStructured(model, `伊豆大島航路の複数便について予報情報だけを整理してください。各service_idを保持し、就航見込みは決定しないでください。入力に存在する数値と固定知識だけを使い、荒れている地点・航行段階、ピーク、風・波・うねりの変化、モデル一致度、前回差、欠損を数値と単位付きで記述してください。平均だけでモデル差を隠さず、欠損や視程を推測しないでください。\n入力:\n${JSON.stringify(inputs)}`, batchSummarySchema, (value) => validateBatch(value, validateForecastSummary), apiKey, fetchFn, false);
 }
 
 export function generateBatchFinalAssessments(inputs: Array<{ serviceId: string; input: unknown }>, summaries: Array<{ serviceId: string; value: ForecastSummary }>, apiKey: string, fetchFn: typeof fetch = fetch, model: string = GEMINI_MODELS.final) {
-  return generateStructured(model, `伊豆大島航路の複数便を一括して最終評価してください。各service_idを保持してください。ML値は欠航リスクであり運航確率ではありません。数値を捏造せず、遠い予報・モデル不一致・欠損ではconfidenceを下げ、港を判断できない場合は「不明」にしてください。\n整理結果:\n${JSON.stringify(summaries)}\n元入力:\n${JSON.stringify(inputs)}`, batchFinalSchema, (value) => validateBatch(value, validateAssessment), apiKey, fetchFn, false);
+  const inputMap = new Map(inputs.map((item) => [item.serviceId, item.input]));
+  return generateStructured(model, `${FINAL_RULES}\n複数便を航路・船種・時間帯ごとに個別判断し、各service_idを保持してください。\n3.5整理結果:\n${JSON.stringify(summaries)}\n判断材料:\n${JSON.stringify(inputs)}`, batchFinalSchema, (value) => validateBatch(value, (item) => validateAssessment(item)).map((row) => ({ ...row, value: validateGrounding(row.value, inputMap.get(row.serviceId)) })), apiKey, fetchFn, false);
+}
+
+const FINAL_RULES = `伊豆大島航路の最終総合判断を行ってください。判断順序は、欠損、便・船種・航路・時刻、東海汽船公式基準、ML欠航リスク、出発港、航路、入港地点、3/6時間変化、中村氏の公開経験則、複数モデル差、前回差、就航見込み、確信度、港予測、根拠です。
+公式基準・中村氏公開経験則・過去実績ML・現在の複数予報を別レイヤーのまま確認してから総合してください。ML cancellation_probability は過去の類似条件における気象欠航傾向であり、1-MLやモデル平均をそのまま最終就航見込みにしてはいけません。モデル差を平均で消してはいけません。
+入力にない数値、因果、経験則を作らないでください。公式基準と中村氏目安を混同せず、ジェットと大型船、東京航路と熱海等を同じ閾値で扱わないでください。公式基準到達予報は非常に強い欠航材料ですが、未来予報なので自動的に0%にしてはいけません。予報先が遠い、モデル不一致、欠損、前回急変、基準ぎりぎりではconfidenceを下げてください。
+official_criteria_statusには入力中のofficialCriteriaから判断に実際に使った項目だけを、forecast/threshold/unitを変更せず転記してください。入力のnear_internalは内部距離であり、公式警戒基準とは表現せずstatusはnearとしてください。港を根拠付きで判断できない場合は不明、port_confidenceは0、port_reasonsに不足情報を書いてください。根拠文には可能な限りモデル名、地点・段階、値、単位、基準値を含めてください。`;
+
+function finalPrompt(input: unknown, summary: ForecastSummary): string {
+  return `${FINAL_RULES}\n3.5整理結果:\n${JSON.stringify(summary)}\n判断材料:\n${JSON.stringify(input)}`;
 }
 
 function mayTryFallback(error: unknown): boolean {
@@ -132,15 +165,20 @@ export async function assessBatchWithFallback<T>(items: Array<{ serviceId: strin
 }
 
 export async function assessWithFallback<T>(input: unknown, ml: T, apiKey: string, fetchFn: typeof fetch = fetch) {
+  let summaryModel: string = GEMINI_MODELS.summary;
+  let finalModel: string = GEMINI_MODELS.final;
   try {
-    const forecastSummary = await generateForecastSummary(input, apiKey, fetchFn);
+    const summaryAttempt = await tryModelChain(GEMINI_MODEL_CHAINS.summary, (model) => generateForecastSummary(input, apiKey, fetchFn, model, false));
+    summaryModel = summaryAttempt.model;
+    const forecastSummary = summaryAttempt.value;
     try {
-      const ai = await generateFinalAssessment(input, forecastSummary, apiKey, fetchFn);
-      return { ml, forecastSummary, ai, aiStatus: "generated" as const, geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
+      const finalAttempt = await tryModelChain(GEMINI_MODEL_CHAINS.final, (model) => generateFinalAssessment(input, forecastSummary, apiKey, fetchFn, model, false));
+      finalModel = finalAttempt.model;
+      return { ml, forecastSummary, ai: finalAttempt.value, aiStatus: "generated" as const, geminiModels: { summary: summaryModel, final: finalModel }, promptVersion: PROMPT_VERSION };
     } catch (error) {
-      return { ml, forecastSummary, ai: null, aiStatus: "unavailable" as const, error: error instanceof Error ? error.message : String(error), geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
+      return { ml, forecastSummary, ai: null, aiStatus: "unavailable" as const, error: error instanceof Error ? error.message : String(error), geminiModels: { summary: summaryModel, final: finalModel }, promptVersion: PROMPT_VERSION };
     }
   } catch (error) {
-    return { ml, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: error instanceof Error ? error.message : String(error), geminiModels: GEMINI_MODELS, promptVersion: PROMPT_VERSION };
+    return { ml, forecastSummary: null, ai: null, aiStatus: "unavailable" as const, error: error instanceof Error ? error.message : String(error), geminiModels: { summary: summaryModel, final: finalModel }, promptVersion: PROMPT_VERSION };
   }
 }
