@@ -40,6 +40,8 @@ pnpm worker:dev
 
 監査済み127特徴量モデルは提供時系列データから再構築済みです。再学習方法と評価値は [Phase 1 status](docs/phase-1-status.md) を参照してください。
 
+公開前検証の実施状況と、Android/iPhone実機で残っている確認事項は [Phase 6 status](docs/phase-6-status.md) にあります。
+
 ## モデル再学習
 
 提供データZIPから次の3ファイルを `data/` に展開します（`data/` はGit管理外です）。

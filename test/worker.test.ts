@@ -42,6 +42,17 @@ test("worker serves installable Phase 5 PWA assets", async () => {
   assert.match(serviceWorker, /x-offline-stale/);
 });
 
+test("phase 6 UI renders stored history and handles a missing previous AI delta", async () => {
+  const html = await (await handleRequest(new Request("https://example.test/"))).text();
+  const script = await (await handleRequest(new Request("https://example.test/phase6.js"))).text();
+  const serviceWorker = await (await handleRequest(new Request("https://example.test/sw.js"))).text();
+  assert.match(html, /\/phase6\.js/);
+  assert.match(script, /history-panel/);
+  assert.match(script, /前回差は算出できません/);
+  assert.match(script, /textContent\.replace\('nullポイント'/);
+  assert.match(serviceWorker, /oshima-route-v3/);
+});
+
 test("worker rejects invalid service input before external API calls", async () => {
   let called = false;
   const response = await handleRequest(new Request("https://example.test/api/predict", {
@@ -58,6 +69,14 @@ test("worker rejects oversized request bodies", async () => {
     method: "POST", headers: { "content-length": "20000" }, body: "{}"
   }));
   assert.equal(response.status, 413);
+});
+
+test("worker turns D1 read failures into a structured unavailable response", async () => {
+  const brokenDb = { prepare() { throw new Error("database offline"); } } as unknown as D1Database;
+  const response = await handleRequest(new Request("https://example.test/api/days?from=2026-09-29"), fetch, { DB: brokenDb });
+  assert.equal(response.status, 503);
+  const body = await response.json() as { error: { code: string } };
+  assert.equal(body.error.code, "STORAGE_UNAVAILABLE");
 });
 
 test("worker runs forecast fixture through features and ML inference", async () => {

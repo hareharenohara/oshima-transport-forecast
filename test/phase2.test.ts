@@ -27,3 +27,12 @@ test("preserves the validated summary when final Gemini is unavailable",async()=
   assert.equal(x.aiStatus,"unavailable"); assert.equal(x.ai,null); assert.equal(x.forecastSummary?.risk_level,"medium"); assert.equal(calls,3);
 });
 test("Gemini failure preserves ML fallback",async()=>{const x=await assessWithFallback({}, {cancellationProbability:.2}, "x", async()=>new Response("bad",{status:500}));assert.equal(x.ai,null);assert.equal(x.aiStatus,"unavailable");assert.deepEqual(x.ml,{cancellationProbability:.2})});
+test("accepts valid zero and one-hundred percent boundary assessments",()=>{
+  for(const value of [0,100]){
+    const result=validateAssessment({operation_probability:value,confidence:value,assessment:"境界値",positive_factors:[],negative_factors:[],confidence_reasons:[],port_prediction:"不明",summary:"境界値確認"});
+    assert.equal(result.operation_probability,value); assert.equal(result.confidence,value);
+  }
+});
+test("rejects assessment values outside the percentage range",()=>{
+  assert.throws(()=>validateAssessment({operation_probability:101,confidence:50,assessment:"不正",positive_factors:[],negative_factors:[],confidence_reasons:[],port_prediction:"不明",summary:"不正"}),/operation_probability/);
+});
