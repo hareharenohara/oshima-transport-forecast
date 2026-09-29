@@ -9,8 +9,8 @@
 - Preview UI/API: https://tokai-kisen-forecast-preview.hareharenohara.workers.dev
 - Cloudflare Worker: `tokai-kisen-forecast-preview`
 - Preview D1: `tokai-kisen-forecast-preview`（APAC）
-- Cron: 2時間ごと、`0 */2 * * *`
-- Preview Worker version: `2f3b3064-abad-442a-8f5a-7fe562d4decf`
+- Cron: 日本時間の偶数時（0時、2時、…、22時）。CloudflareのUTC設定は `0 1,3,5,7,9,11,13,15,17,19,21,23 * * *`
+- Preview Worker version: `2267f1bf-348c-40ca-a444-582c33ad18b9`
 
 GitHubの `main` が正本です。OneDrive上の元フォルダやDownloads内のZIPがなくても、現在のWorker、モデル、マイグレーション、UI、テストは復元できます。再学習だけは元データZIPが別途必要です。
 

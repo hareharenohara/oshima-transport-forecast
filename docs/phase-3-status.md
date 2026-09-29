@@ -2,7 +2,7 @@
 
 The local D1 and Cron foundation is implemented. Migration `0001_phase3.sql` creates services, forecast runs, append-only ML and AI prediction history, actual results, and structured run logs.
 
-The scheduled handler runs every two hours. A unique UTC two-hour `run_slot` prevents duplicate execution. It selects only future services without confirmed actual results, runs the Phase 2 pipeline, stores every valid per-model ML value, preserves Gemini fallback status, and records service-level failures without stopping the remaining services.
+The scheduled handler runs at every even hour in Japan Standard Time (00:00, 02:00, ..., 22:00 JST). A unique UTC two-hour `run_slot` prevents duplicate execution. It selects only future services without confirmed actual results, runs the Phase 2 pipeline, stores every valid per-model ML value, preserves Gemini fallback status, and records service-level failures without stopping the remaining services.
 
 ML runs for every target on every two-hour invocation. Gemini also remains on the two-hour cadence, but all services are combined into one summary-model request and one final-model request. Each run records the batch size and attempted call count in `run_logs` as `gemini_batch`, so quota behavior is auditable without logging credentials.
 
