@@ -1,4 +1,3 @@
-import type { FinalAssessment } from "../gemini/client.js";
 import type { ServiceInput } from "../types.js";
 
 export interface PushEnv {
@@ -70,7 +69,7 @@ function routeMatches(group: string, terminal: string): boolean {
   return group === "all" || (group === "tokyo" && ["東京", "横浜", "久里浜", "館山"].includes(terminal)) || (group === "atami" && ["熱海", "伊東", "稲取"].includes(terminal)) || (group === "other" && !["東京", "横浜", "久里浜", "館山", "熱海", "伊東", "稲取"].includes(terminal));
 }
 
-interface PushAssessment { ai: FinalAssessment | null; ml: { predictions: Array<{ cancellationProbability: number }> } }
+interface PushAssessment { ai: { port_prediction: string | null } | null; ml: { predictions: Array<{ cancellationProbability: number }> } }
 
 function operationProbability(result: PushAssessment): number | null {
   const values = result.ml.predictions.map((row: { cancellationProbability: number }) => (1 - row.cancellationProbability) * 100);
@@ -107,7 +106,10 @@ export async function notifyPredictionChanges(env: PushEnv, service: ServiceInpu
   if (current === null) return 0;
   const previous = await env.DB.prepare(`SELECT
     (SELECT AVG(operation_probability) * 100 FROM ml_predictions m WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = a.service_id) value,
-    port_prediction FROM ai_predictions a WHERE service_id = ? ORDER BY created_at DESC LIMIT 1 OFFSET 1`).bind(service.serviceId).first<{ value: number | null; port_prediction: string | null }>();
+    port_prediction FROM ai_predictions a JOIN forecast_runs r ON r.id=a.forecast_run_id
+    WHERE a.service_id = ? AND r.status IN ('completed','partial')
+      AND (r.publish_at IS NULL OR r.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    ORDER BY a.created_at DESC LIMIT 1 OFFSET 1`).bind(service.serviceId).first<{ value: number | null; port_prediction: string | null }>();
   const subscribers = await env.DB.prepare(`SELECT s.id, s.endpoint, p.route_group, p.probability_threshold, p.change_threshold,
     p.notify_risk_transition, p.notify_port_change FROM push_subscriptions s JOIN user_notification_preferences p ON p.subscription_id=s.id`).all<SubscriberRow>();
   let sent = 0;

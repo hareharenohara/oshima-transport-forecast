@@ -17,3 +17,12 @@ test("applies official large-ship exclusion dates", async () => {
   assert.equal(rows.some((row) => row.serviceDate === "2026-10-14" && row.serviceNumber === "2000"), false);
   assert.equal(rows.filter((row) => row.serviceNumber === "1230").length, 2);
 });
+
+test("October 1-8 uses its own official timetable, without a regular Oshima large ship", async () => {
+  const rows = await new BundledOfficialScheduleProvider().load("2026-10-01", "2026-10-08");
+  const first = rows.filter((row) => row.serviceDate === "2026-10-01");
+  assert.deepEqual(first.filter((row) => row.origin === "東京").map((row) => row.serviceNumber).sort(), ["1220", "1230"]);
+  assert.deepEqual(first.filter((row) => row.destination === "東京").map((row) => row.serviceNumber).sort(), ["2210", "2220"]);
+  assert.equal(first.some((row) => row.shipType === "large"), false);
+  assert.ok(rows.every((row) => row.sourceUrl.includes("9-30")));
+});

@@ -24,11 +24,11 @@ export function twoHourRunSlot(date: Date): string {
   return slot.toISOString();
 }
 
-export async function acquireRun(db: D1Database, now: Date): Promise<{ id: string; slot: string } | null> {
+export async function acquireRun(db: D1Database, now: Date, publishAt = now): Promise<{ id: string; slot: string } | null> {
   const id = crypto.randomUUID();
-  const slot = twoHourRunSlot(now);
+  const slot = twoHourRunSlot(publishAt);
   const result = await db.prepare(`INSERT OR IGNORE INTO forecast_runs
-    (id, run_slot, run_at, status, source_status, created_at) VALUES (?, ?, ?, 'running', '{}', ?)`).bind(id, slot, now.toISOString(), now.toISOString()).run();
+    (id, run_slot, run_at, status, source_status, publish_at, created_at) VALUES (?, ?, ?, 'running', '{}', ?, ?)`).bind(id, slot, now.toISOString(), publishAt.toISOString(), now.toISOString()).run();
   return result.meta.changes === 1 ? { id, slot } : null;
 }
 
@@ -36,7 +36,7 @@ export async function upcomingServices(db: D1Database, now: Date, horizonDays = 
   const until = new Date(now.getTime() + horizonDays * 86_400_000).toISOString();
   const rows = await db.prepare(`SELECT id, service_number, ship_type, origin, destination, counterpart_terminal,
     scheduled_departure, scheduled_arrival FROM services
-    WHERE actual_result_confirmed = 0 AND datetime(scheduled_departure) > datetime(?) AND datetime(scheduled_departure) <= datetime(?)
+    WHERE schedule_active = 1 AND actual_result_confirmed = 0 AND datetime(scheduled_departure) > datetime(?) AND datetime(scheduled_departure) <= datetime(?)
     ORDER BY scheduled_departure`).bind(now.toISOString(), until).all<StoredServiceRow>();
   return rows.results.map((row) => ({
     serviceId: row.id,
@@ -49,13 +49,76 @@ export async function upcomingServices(db: D1Database, now: Date, horizonDays = 
   }));
 }
 
+const VISIBLE_RUN_SQL = `r.status IN ('completed','partial')
+  AND (r.publish_at IS NULL OR r.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
+
+// API visibility begins at the scheduled publication time, or completion if late.
+function publicationTimeSql(alias: string): string {
+  return `CASE WHEN ${alias}.publish_at IS NOT NULL AND (${alias}.completed_at IS NULL
+    OR julianday(${alias}.publish_at) >= julianday(${alias}.completed_at))
+    THEN ${alias}.publish_at ELSE COALESCE(${alias}.completed_at, ${alias}.run_at) END`;
+}
+
+export async function readLatestPublicationTime(db: D1Database): Promise<string | null> {
+  const row = await db.prepare(`SELECT ${publicationTimeSql("r")} AS published_at FROM forecast_runs r
+    WHERE ${VISIBLE_RUN_SQL} ORDER BY r.run_slot DESC LIMIT 1`).first<{ published_at: string | null }>();
+  return row?.published_at ?? null;
+}
+
+export async function readLatestPublishedRunSlot(db: D1Database): Promise<string | null> {
+  const row = await db.prepare(`SELECT MAX(r.run_slot) AS slot FROM forecast_runs r WHERE ${VISIBLE_RUN_SQL}`)
+    .first<{ slot: string | null }>();
+  return row?.slot ?? null;
+}
+
+export async function claimDuePushRuns(db: D1Database, now: Date): Promise<string[]> {
+  const rows = await db.prepare(`SELECT id FROM forecast_runs WHERE publish_at IS NOT NULL AND publish_at <= ?
+    AND status IN ('completed','partial') AND push_dispatched_at IS NULL ORDER BY publish_at`)
+    .bind(now.toISOString()).all<{ id: string }>();
+  const claimed: string[] = [];
+  for (const row of rows.results) {
+    const result = await db.prepare(`UPDATE forecast_runs SET push_dispatched_at=? WHERE id=? AND push_dispatched_at IS NULL`)
+      .bind(now.toISOString(), row.id).run();
+    if (result.meta.changes === 1) claimed.push(row.id);
+  }
+  return claimed;
+}
+
+export async function readRunPushAssessments(db: D1Database, runId: string): Promise<Array<{
+  service: ServiceInput; result: { ai: { port_prediction: string | null } | null; ml: { predictions: Array<{ cancellationProbability: number }> } }
+}>> {
+  const rows = await db.prepare(`SELECT s.id, s.service_number, s.ship_type, s.destination, s.counterpart_terminal,
+    s.scheduled_departure, s.scheduled_arrival, a.port_prediction,
+    (SELECT json_group_array(m.cancellation_probability) FROM ml_predictions m
+      WHERE m.forecast_run_id=a.forecast_run_id AND m.service_id=s.id) AS risks_json
+    FROM ai_predictions a JOIN services s ON s.id=a.service_id
+    WHERE a.forecast_run_id=? AND s.schedule_active=1 ORDER BY s.scheduled_departure`)
+    .bind(runId).all<{
+      id: string; service_number: string; ship_type: "jet" | "large"; destination: string; counterpart_terminal: string;
+      scheduled_departure: string; scheduled_arrival: string; port_prediction: string | null; risks_json: string;
+    }>();
+  return rows.results.map((row) => ({
+    service: {
+      serviceId: row.id, voyageNumber: row.service_number, shipType: row.ship_type,
+      direction: row.destination === "大島" ? "to_oshima" as const : "from_oshima" as const,
+      counterpartTerminal: row.counterpart_terminal, scheduledDepartureJst: row.scheduled_departure,
+      scheduledArrivalJst: row.scheduled_arrival
+    },
+    result: { ai: { port_prediction: row.port_prediction }, ml: { predictions: (JSON.parse(row.risks_json) as number[]).map((cancellationProbability) => ({ cancellationProbability })) } }
+  }));
+}
+
 export async function readPreviousPredictionContexts(db: D1Database, serviceIds: string[]): Promise<Map<string, PreviousPredictionContext>> {
   if (!serviceIds.length) return new Map();
   const placeholders = serviceIds.map(() => "?").join(",");
   const rows = await db.prepare(`SELECT a.service_id, a.evaluation_rating, a.confidence_level, a.port_prediction, a.created_at
-    FROM ai_predictions a WHERE a.service_id IN (${placeholders}) AND a.ai_status='generated'
+    FROM ai_predictions a JOIN forecast_runs r ON r.id=a.forecast_run_id
+    WHERE a.service_id IN (${placeholders}) AND a.ai_status='generated' AND ${VISIBLE_RUN_SQL}
       AND a.created_at=(SELECT MAX(previous.created_at) FROM ai_predictions previous
-        WHERE previous.service_id=a.service_id AND previous.ai_status='generated')`).bind(...serviceIds).all<{
+        JOIN forecast_runs previous_run ON previous_run.id=previous.forecast_run_id
+        WHERE previous.service_id=a.service_id AND previous.ai_status='generated'
+          AND previous_run.status IN ('completed','partial')
+          AND (previous_run.publish_at IS NULL OR previous_run.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now')))`).bind(...serviceIds).all<{
           service_id: string; evaluation_rating: string | null; confidence_level: number | null; port_prediction: string | null; created_at: string;
         }>();
   return new Map(rows.results.map((row) => [row.service_id, {
@@ -89,15 +152,15 @@ export async function saveAssessment(db: D1Database, runId: string, serviceId: s
   statements.push(db.prepare(`INSERT INTO ai_predictions (id, forecast_run_id, service_id, evaluation_rating,
     confidence_level, assessment, positive_factors_json, negative_factors_json, confidence_reasons_json, port_prediction,
     port_confidence_level, port_reasons_json, official_criteria_status_json, summary, forecast_summary_json, ai_status,
-    error_message, gemini_model, gemini_summary_model, ai_provider, ai_summary_provider, prompt_version, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+    error_message, gemini_model, gemini_summary_model, ai_provider, ai_summary_provider, prompt_version, pairing_version, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
       crypto.randomUUID(), runId, serviceId, ai?.evaluation_grade ?? null, ai?.confidence_level ?? null,
       ai?.assessment ?? null, JSON.stringify(ai?.positive_factors ?? []), JSON.stringify(ai?.negative_factors ?? []),
       JSON.stringify(ai?.confidence_reasons ?? []), ai?.port_prediction ?? null, ai?.port_confidence_level ?? null,
       JSON.stringify(ai?.port_reasons ?? []), JSON.stringify(ai?.official_criteria_status ?? []), ai?.summary ?? null,
       result.forecastSummary ? JSON.stringify(result.forecastSummary) : null, result.aiStatus,
       result.error ?? null, result.geminiModels?.final ?? null, result.geminiModels?.summary ?? null,
-      result.aiProviders?.final ?? null, result.aiProviders?.summary ?? null, result.promptVersion ?? null, createdAt
+      result.aiProviders?.final ?? null, result.aiProviders?.summary ?? null, result.promptVersion ?? null, "round-trip-v1", createdAt
     ));
   await db.batch(statements);
 }
@@ -166,8 +229,9 @@ export async function saveForecastSeries(db: D1Database, runId: string, serviceI
 }
 
 export async function readForecastSeries(db: D1Database, serviceId: string): Promise<{ forecastRunId: string; createdAt: string; series: ServiceForecastSeries } | null> {
-  const row = await db.prepare(`SELECT forecast_run_id, payload_json, created_at FROM service_forecast_series
-    WHERE service_id = ? ORDER BY created_at DESC LIMIT 1`).bind(serviceId).first<{ forecast_run_id: string; payload_json: string; created_at: string }>();
+  const row = await db.prepare(`SELECT f.forecast_run_id, f.payload_json, f.created_at FROM service_forecast_series f
+    JOIN forecast_runs r ON r.id=f.forecast_run_id
+    WHERE f.service_id = ? AND ${VISIBLE_RUN_SQL} ORDER BY f.created_at DESC LIMIT 1`).bind(serviceId).first<{ forecast_run_id: string; payload_json: string; created_at: string }>();
   return row ? { forecastRunId: row.forecast_run_id, createdAt: row.created_at, series: JSON.parse(row.payload_json) as ServiceForecastSeries } : null;
 }
 
@@ -201,6 +265,16 @@ interface PredictionViewRow {
   destination: string;
   scheduled_departure: string;
   scheduled_arrival: string;
+  round_trip_id: string | null;
+  paired_service_id: string | null;
+  paired_service_number: string | null;
+  paired_scheduled_departure: string | null;
+  paired_official_status: string | null;
+  paired_official_port: string | null;
+  paired_official_note: string | null;
+  leg_evaluation_grade: string | null;
+  paired_leg_evaluation_grade: string | null;
+  paired_summary: string | null;
   evaluation_grade: string | null;
   confidence_level: number | null;
   assessment: string | null;
@@ -211,6 +285,7 @@ interface PredictionViewRow {
   summary: string | null;
   ai_status: string | null;
   prediction_created_at: string | null;
+  prediction_published_at: string | null;
   ml_operation_probability: number | null;
   official_status: string | null;
   official_port: string | null;
@@ -220,30 +295,43 @@ interface PredictionViewRow {
 }
 
 const LATEST_PREDICTION_SELECT = `SELECT s.id AS service_id, s.service_date, s.service_number, s.ship_type,
-  s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, a.evaluation_rating AS evaluation_grade, a.confidence_level,
+  s.origin, s.destination, s.scheduled_departure, s.scheduled_arrival, s.round_trip_id, s.paired_service_id,
+  ps.service_number AS paired_service_number, ps.scheduled_departure AS paired_scheduled_departure,
+  pos.status AS paired_official_status, pos.port AS paired_official_port, pos.note AS paired_official_note,
+  a.evaluation_rating AS leg_evaluation_grade, pa.evaluation_rating AS paired_leg_evaluation_grade, pa.summary AS paired_summary,
+  a.evaluation_rating AS evaluation_grade,
+  a.confidence_level,
   a.assessment, a.port_prediction, a.port_confidence_level, a.port_reasons_json, a.official_criteria_status_json,
   a.summary, a.ai_status, a.created_at AS prediction_created_at,
+  (SELECT ${publicationTimeSql("pr")} FROM forecast_runs pr WHERE pr.id=a.forecast_run_id) AS prediction_published_at,
   os.status AS official_status, os.port AS official_port, os.note AS official_note,
   os.source_updated_at AS official_source_updated_at, os.official_source,
   (SELECT AVG(m.operation_probability) FROM ml_predictions m
     WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = s.id) AS ml_operation_probability
-  FROM services s LEFT JOIN ai_predictions a ON a.id = (
-    SELECT ap.id FROM ai_predictions ap WHERE ap.service_id = s.id ORDER BY ap.created_at DESC LIMIT 1
-  ) LEFT JOIN official_service_statuses os ON os.service_id = s.id`;
+  FROM services s LEFT JOIN services ps ON ps.id=s.paired_service_id
+  LEFT JOIN ai_predictions a ON a.id = (
+    SELECT ap.id FROM ai_predictions ap JOIN forecast_runs r ON r.id=ap.forecast_run_id
+    WHERE ap.service_id = s.id AND ${VISIBLE_RUN_SQL} ORDER BY ap.created_at DESC LIMIT 1
+  ) LEFT JOIN ai_predictions pa ON pa.id = (
+    SELECT ap.id FROM ai_predictions ap JOIN forecast_runs r ON r.id=ap.forecast_run_id
+    WHERE ap.service_id = ps.id AND ${VISIBLE_RUN_SQL} ORDER BY ap.created_at DESC LIMIT 1
+  ) LEFT JOIN official_service_statuses os ON os.service_id = s.id
+    LEFT JOIN official_service_statuses pos ON pos.service_id = ps.id`;
 
 export async function readDays(db: D1Database, fromDate: string, days = 5): Promise<Array<{ date: string; services: PredictionViewRow[] }>> {
   const endDate = dateRangeEnd(fromDate, days);
-  const rows = await db.prepare(`${LATEST_PREDICTION_SELECT} WHERE s.service_date >= ? AND s.service_date < ? ORDER BY s.scheduled_departure`).bind(fromDate, endDate).all<PredictionViewRow>();
+  const rows = await db.prepare(`${LATEST_PREDICTION_SELECT} WHERE s.schedule_active = 1 AND s.service_date >= ? AND s.service_date < ? ORDER BY s.scheduled_departure`).bind(fromDate, endDate).all<PredictionViewRow>();
   const grouped = new Map<string, PredictionViewRow[]>();
   for (const row of rows.results) grouped.set(row.service_date, [...(grouped.get(row.service_date) ?? []), row]);
   return [...grouped].map(([date, services]) => ({ date, services }));
 }
 
 export async function readService(db: D1Database, serviceId: string): Promise<unknown | null> {
-  const service = await db.prepare(`${LATEST_PREDICTION_SELECT} WHERE s.id = ?`).bind(serviceId).first<PredictionViewRow>();
+  const service = await db.prepare(`${LATEST_PREDICTION_SELECT} WHERE s.schedule_active = 1 AND s.id = ?`).bind(serviceId).first<PredictionViewRow>();
   if (!service) return null;
-  const predictions = await db.prepare(`SELECT evaluation_rating AS evaluation_grade, confidence_level, port_prediction, created_at
-    FROM ai_predictions WHERE service_id = ? ORDER BY created_at DESC LIMIT 2`).bind(serviceId).all<{
+  const predictions = await db.prepare(`SELECT a.evaluation_rating AS evaluation_grade, a.confidence_level, a.port_prediction, a.created_at
+    FROM ai_predictions a JOIN forecast_runs r ON r.id=a.forecast_run_id
+    WHERE a.service_id = ? AND ${VISIBLE_RUN_SQL} ORDER BY a.created_at DESC LIMIT 2`).bind(serviceId).all<{
       evaluation_grade: string | null; confidence_level: number | null; port_prediction: string | null; created_at: string;
     }>();
   const current = predictions.results[0];
@@ -260,12 +348,12 @@ export async function readService(db: D1Database, serviceId: string): Promise<un
 }
 
 export async function readHistory(db: D1Database, serviceId: string): Promise<unknown[]> {
-  const rows = await db.prepare(`SELECT a.*, r.run_at,
+  const rows = await db.prepare(`SELECT a.*, r.run_at, ${publicationTimeSql("r")} AS published_at,
     (SELECT json_group_array(json_object('weatherModel', m.weather_model, 'marineModel', m.marine_model,
       'cancellationProbability', m.cancellation_probability, 'operationProbability', m.operation_probability))
       FROM ml_predictions m WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = a.service_id) AS ml_predictions_json
     FROM ai_predictions a JOIN forecast_runs r ON r.id = a.forecast_run_id
-    WHERE a.service_id = ? ORDER BY a.created_at DESC`).bind(serviceId).all<Record<string, unknown>>();
+    WHERE a.service_id = ? AND ${VISIBLE_RUN_SQL} ORDER BY a.created_at DESC`).bind(serviceId).all<Record<string, unknown>>();
   return rows.results.map((row) => ({
     ...row,
     positive_factors: JSON.parse(String(row.positive_factors_json)),

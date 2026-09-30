@@ -80,7 +80,7 @@ test("worker serves collapsed days and official status presentation", async () =
   assert.match(app, /segmentedScale/);
   assert.doesNotMatch(app, /compactScale/);
   assert.match(app, /listShip=v=>v==='jet'\?'JF':'大型船'/);
-  assert.match(app, /class="service-grade"/);
+  assert.match(app, /class="service-grade grade-badge"/);
   assert.doesNotMatch(app, /segmentedScale\('確信度'/);
   assert.doesNotMatch(app, /便ごとのAI評価の平均/);
   assert.doesNotMatch(app, /最低AI評価/);
@@ -88,6 +88,64 @@ test("worker serves collapsed days and official status presentation", async () =
   assert.doesNotMatch(app, /平均就航見込み/);
   assert.match(app, /official_status/);
   assert.match(official, /公式運航情報/);
+});
+
+test("worker UI labels one-way grades and uses the most cautious daily grade", async () => {
+  const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
+  const css = await (await handleRequest(new Request("https://example.test/app.css"))).text();
+  assert.match(app, /title="片道評価"/);
+  assert.match(app, /Math\.min\(\.\.\.values\)/);
+  assert.doesNotMatch(app, /visibleServices=services/);
+  assert.doesNotMatch(app, /往復セットの予測/);
+  assert.match(css, /round-trip-route/);
+  assert.match(css, /\.day\.open \.service-list\{display:block\}/);
+  assert.doesNotThrow(() => new Function(app));
+});
+
+test("the list shows both one-way departures on their own dates", async () => {
+  const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
+  assert.match(app, /const shown=d\.services/);
+  assert.match(app, /shown\.map\(card\)/);
+  assert.doesNotMatch(app, /paired_service_id/);
+});
+
+test("five-grade gauge renders every grade and leaves pending assessments unmarked", async () => {
+  const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
+  const css = await (await handleRequest(new Request("https://example.test/app.css"))).text();
+  const source = app.slice(app.indexOf("function segmentedScale("), app.indexOf("function ring("));
+  const renderGauge = new Function("rankGrade", "gradeText", "esc", source + ";return segmentedScale;")(
+    ["D", "C", "B", "A", "S"],
+    { D: "欠航の可能性が高い", C: "欠航寄り", B: "判断が分かれる", A: "就航寄り", S: "就航の可能性が高い" },
+    (value: string) => value,
+  );
+  for (const [index, grade] of ["D", "C", "B", "A", "S"].entries()) {
+    const html = renderGauge("", [], grade, "", "");
+    assert.match(html, new RegExp(`data-grade="${grade}"`));
+    assert.match(html, new RegExp(`grade-pointer" style="left:${index * 25}%"`));
+    assert.equal((html.match(/grade-node active/g) ?? []).length, 1);
+    assert.match(html, /role="img" aria-label="就航見通し：/);
+  }
+  const pending = renderGauge("", [], null, "", "");
+  assert.match(pending, /評価待ち/);
+  assert.doesNotMatch(pending, /grade-pointer|grade-node active/);
+  assert.match(css, /\.grade-track\{[^}]*linear-gradient/);
+  assert.match(css, /data-theme="dark"\] \.grade-status/);
+  assert.match(css, /grid-template-columns:52px 64px minmax\(0,1fr\) 32px/);
+});
+
+test("UI timestamps use publication and omit only services without prediction data", async () => {
+  const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
+  const history = await (await handleRequest(new Request("https://example.test/phase6.js"))).text();
+  assert.match(app, /renderUpdateTimes\(data.publishedRunSlot,data.publishedAt\)/);
+  assert.match(app, /s.prediction_published_at\?new Date\(s.prediction_published_at\)/);
+  assert.match(history, /at:row.published_at\|\|row.run_at/);
+  const source = app.slice(app.indexOf("function forecastDaysWithData("), app.indexOf("function renderUpdateTimes("));
+  const filter = new Function(source + ";return forecastDaysWithData;")();
+  const available = { service_id: "weather-without-ai", prediction_created_at: "2026-09-30T06:54:00Z", ai_status: "unavailable" };
+  assert.deepEqual(filter([
+    { date: "2026-10-04", services: [available, { service_id: "no-data", prediction_created_at: null }] },
+    { date: "2026-10-05", services: [{ prediction_created_at: null }] },
+  ]), [{ date: "2026-10-04", services: [available] }]);
 });
 
 test("worker rejects invalid service input before external API calls", async () => {
