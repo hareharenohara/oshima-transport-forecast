@@ -55,7 +55,7 @@ test("phase 6 UI renders stored history and handles a missing previous AI delta"
   assert.doesNotMatch(script, /%/);
   assert.match(script, /前回差は算出できません/);
   assert.match(script, /textContent\.replace\('nullポイント'/);
-  assert.match(serviceWorker, /oshima-route-v19/);
+  assert.match(serviceWorker, /oshima-route-v23/);
 });
 
 test("worker serves model-separated weather chart assets", async () => {
@@ -68,7 +68,7 @@ test("worker serves model-separated weather chart assets", async () => {
   assert.match(script, /モデル別/);
   assert.match(script, /Asia\/Tokyo/);
   assert.match(script, /日本時間/);
-  assert.match(serviceWorker, /oshima-route-v19/);
+  assert.match(serviceWorker, /oshima-route-v23/);
 });
 
 test("worker serves collapsed days and official status presentation", async () => {
@@ -111,7 +111,7 @@ test("the list shows both one-way departures on their own dates", async () => {
   assert.doesNotMatch(app, /paired_service_id/);
 });
 
-test("four-grade gauge never marks C without an actual forecast", async () => {
+test("four segments show the actual forecast and never select a grade without one", async () => {
   const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
   const css = await (await handleRequest(new Request("https://example.test/app.css"))).text();
   const source = app.slice(app.indexOf("function segmentedScale("), app.indexOf("function ring("));
@@ -120,17 +120,18 @@ test("four-grade gauge never marks C without an actual forecast", async () => {
     { D: "困難", C: "注意", B: "見込", A: "良好" },
     (value: string) => value,
   );
-  for (const [index, grade] of ["D", "C", "B", "A"].entries()) {
+  for (const grade of ["D", "C", "B", "A"]) {
     const html = renderGauge("", [], grade, "", "");
     assert.match(html, new RegExp(`data-grade="${grade}"`));
-    assert.match(html, new RegExp(`grade-pointer" style="left:${index * 100 / 3}%"`));
-    assert.equal((html.match(/grade-node active/g) ?? []).length, 1);
+    assert.match(html, new RegExp(`grade-segment active" data-grade="${grade}"`));
+    assert.equal((html.match(/grade-segment active/g) ?? []).length, 1);
     assert.match(html, /role="img" aria-label="就航見通し：/);
   }
   const pending = renderGauge("", [], null, "", "");
   assert.match(pending, /data-grade="pending"/);
-  assert.equal((pending.match(/grade-node active/g) ?? []).length, 0);
-  assert.match(css, /\.grade-track\{[^}]*linear-gradient/);
+  assert.equal((pending.match(/grade-segment active/g) ?? []).length, 0);
+  assert.match(css, /\.grade-segments\{[^}]*repeat\(4/);
+  assert.doesNotMatch(app, /grade-pointer|grade-axis|grade-node/);
   assert.match(css, /data-theme="dark"\] \.grade-status/);
   assert.match(css, /grid-template-columns:56px 64px minmax\(0,1fr\) auto auto/);
 });

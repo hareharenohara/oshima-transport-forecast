@@ -96,8 +96,8 @@ test("served UI uses daily grade, renders escaped overview before services and o
  vm.runInContext(script.slice(0,script.indexOf("qa('[data-close]')")),context);
  vm.runInContext(`days=[{date:${JSON.stringify(date)},services:[{service_id:'a',evaluation_grade:'D'}],daily_forecast:{action_guidance:{grade:'A'},assessment:${JSON.stringify({...overview,assessment:overview.assessment+"<script>"})}}}];render()`,context);
  assert.match(container.innerHTML,/data-grade="A"/);assert.match(container.innerHTML,/&lt;script&gt;/);
- assert.ok(container.innerHTML.indexOf("総評")<container.innerHTML.indexOf('data-service="a"'));
+ assert.ok(container.innerHTML.indexOf('class="daily-overview grade-gauge"')<container.innerHTML.indexOf('data-service="a"'));
  assert.equal(typeof button.onclick,"function");button.onclick();
  vm.runInContext(`days[0].daily_forecast={ai_status:'unavailable',assessment:null};render()`,context);
- assert.match(container.innerHTML,/data-grade="pending"/);assert.match(container.innerHTML,/前回予測/);assert.doesNotMatch(container.innerHTML,/data-grade="C"|慎重側/);
+ assert.match(container.innerHTML,/data-grade="pending"/);assert.match(container.innerHTML,/前回予測/);assert.doesNotMatch(container.innerHTML,/grade-segment active" data-grade="C"|慎重側/);
 });
