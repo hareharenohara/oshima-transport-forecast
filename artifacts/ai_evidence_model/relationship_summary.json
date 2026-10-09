@@ -1,0 +1,1727 @@
+[
+  {
+    "item": "cloud",
+    "feature": "journey_cloud_cover_max",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0873563218390804,
+        "highest_bin_cancellation_rate": 0.0835189309576837,
+        "difference": -0.0038373908813967017
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.1174242424242424,
+        "difference": 0.1174242424242424
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "cloud",
+    "feature": "journey_cloud_cover_max",
+    "scope": "jet/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.1104651162790697,
+        "highest_bin_cancellation_rate": 0.1007751937984496,
+        "difference": -0.009689922480620103
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.1376146788990825,
+        "difference": 0.1376146788990825
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "cloud",
+    "feature": "journey_cloud_cover_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0826446280991735,
+        "highest_bin_cancellation_rate": 0.0941176470588235,
+        "difference": 0.01147301895965
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.1258741258741259,
+        "difference": 0.1258741258741259
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "gusts",
+    "feature": "journey_wind_gusts_10m_max",
+    "scope": "all",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.2926267281105991,
+        "difference": 0.2926267281105991
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0253411306042884,
+        "highest_bin_cancellation_rate": 0.5652173913043478,
+        "difference": 0.5398762607000593
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "gusts",
+    "feature": "journey_wind_gusts_10m_max",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.4037267080745341,
+        "difference": 0.4037267080745341
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0212765957446808,
+        "highest_bin_cancellation_rate": 0.7407407407407407,
+        "difference": 0.7194641449960599
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "gusts",
+    "feature": "journey_wind_gusts_10m_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3625,
+        "difference": 0.3625
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 1,
+        "lowest_bin_cancellation_rate": 0.03125,
+        "highest_bin_cancellation_rate": 0.1063829787234042,
+        "difference": 0.0751329787234042
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "gusts",
+    "feature": "journey_wind_gusts_10m_max",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0413223140495867,
+        "difference": 0.0413223140495867
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0588235294117647,
+        "difference": 0.0588235294117647
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "precipitation",
+    "feature": "journey_precipitation_max",
+    "scope": "all",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0761179828734538,
+        "highest_bin_cancellation_rate": 0.1243781094527363,
+        "difference": 0.0482601265792825
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0430622009569378,
+        "highest_bin_cancellation_rate": 0.2041884816753926,
+        "difference": 0.1611262807184548
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "precipitation",
+    "feature": "journey_precipitation_max",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0816777041942604,
+        "highest_bin_cancellation_rate": 0.1739130434782608,
+        "difference": 0.0922353392840004
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0497925311203319,
+        "highest_bin_cancellation_rate": 0.2512820512820513,
+        "difference": 0.2014895201617194
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "precipitation",
+    "feature": "journey_precipitation_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0775193798449612,
+        "highest_bin_cancellation_rate": 0.1351351351351351,
+        "difference": 0.05761575529017389
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0571428571428571,
+        "highest_bin_cancellation_rate": 0.2586206896551724,
+        "difference": 0.20147783251231527
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "precipitation",
+    "feature": "journey_precipitation_max",
+    "scope": "large/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0075187969924812,
+        "highest_bin_cancellation_rate": 0.0185185185185185,
+        "difference": 0.010999721526037301
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0756302521008403,
+        "difference": 0.0756302521008403
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "pressure",
+    "feature": "journey_pressure_msl_max",
+    "scope": "all",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.3018018018018018,
+        "highest_bin_cancellation_rate": 0.0457796852646638,
+        "difference": -0.25602211653713797
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1551246537396121,
+        "highest_bin_cancellation_rate": 0.0256410256410256,
+        "difference": -0.1294836280985865
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "pressure",
+    "feature": "journey_pressure_msl_max",
+    "scope": "jet/東京",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.3181818181818182,
+        "highest_bin_cancellation_rate": 0.0496453900709219,
+        "difference": -0.2685364281108963
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1563981042654028,
+        "highest_bin_cancellation_rate": 0.0512820512820512,
+        "difference": -0.1051160529833516
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "pressure",
+    "feature": "journey_pressure_msl_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2698412698412698,
+        "highest_bin_cancellation_rate": 0.0536912751677852,
+        "difference": -0.2161499946734846
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.1558441558441558,
+        "highest_bin_cancellation_rate": 0.0576923076923076,
+        "difference": -0.09815184815184821
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "pressure",
+    "feature": "journey_pressure_msl_max",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0344827586206896,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": -0.0344827586206896
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.1014492753623188,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": -0.1014492753623188
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_cos_mean",
+    "scope": "all",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2288732394366197,
+        "highest_bin_cancellation_rate": 0.0497592295345104,
+        "difference": -0.1791140099021093
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1688311688311688,
+        "highest_bin_cancellation_rate": 0.0608108108108108,
+        "difference": -0.108020358020358
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_cos_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2565789473684211,
+        "highest_bin_cancellation_rate": 0.0555555555555555,
+        "difference": -0.20102339181286558
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1810344827586207,
+        "highest_bin_cancellation_rate": 0.0952380952380952,
+        "difference": -0.08579638752052549
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_cos_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2391304347826087,
+        "highest_bin_cancellation_rate": 0.0512820512820512,
+        "difference": -0.1878483835005575
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2222222222222222,
+        "highest_bin_cancellation_rate": 0.0632911392405063,
+        "difference": -0.1589310829817159
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_cos_mean",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0566037735849056,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": -0.0566037735849056
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.064516129032258,
+        "highest_bin_cancellation_rate": 0.0188679245283018,
+        "difference": -0.045648204503956194
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_sin_mean",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.025,
+        "highest_bin_cancellation_rate": 0.0709342560553633,
+        "difference": 0.0459342560553633
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2641509433962264,
+        "highest_bin_cancellation_rate": 0.1130952380952381,
+        "difference": -0.15105570530098833
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_sin_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0162162162162162,
+        "highest_bin_cancellation_rate": 0.0933333333333333,
+        "difference": 0.07711711711711709
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2903225806451613,
+        "highest_bin_cancellation_rate": 0.3235294117647059,
+        "difference": 0.03320683111954459
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_sin_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0266666666666666,
+        "highest_bin_cancellation_rate": 0.0539215686274509,
+        "difference": 0.0272549019607843
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1466666666666666,
+        "highest_bin_cancellation_rate": 0.0769230769230769,
+        "difference": -0.06974358974358971
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_direction",
+    "feature": "journey_swell_wave_direction_sin_mean",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0263157894736842,
+        "highest_bin_cancellation_rate": 0.0204081632653061,
+        "difference": -0.005907626208378099
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0721649484536082,
+        "highest_bin_cancellation_rate": 0.0186915887850467,
+        "difference": -0.053473359668561496
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_height",
+    "feature": "journey_swell_wave_height_max",
+    "scope": "all",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0914454277286135,
+        "highest_bin_cancellation_rate": 0.158953722334004,
+        "difference": 0.06750829460539051
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.004,
+        "highest_bin_cancellation_rate": 0.2754098360655738,
+        "difference": 0.2714098360655738
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_height",
+    "feature": "journey_swell_wave_height_max",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1438356164383561,
+        "highest_bin_cancellation_rate": 0.1756097560975609,
+        "difference": 0.03177413965920481
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0066225165562913,
+        "highest_bin_cancellation_rate": 0.3396226415094339,
+        "difference": 0.3330001249531426
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_height",
+    "feature": "journey_swell_wave_height_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0352941176470588,
+        "highest_bin_cancellation_rate": 0.1904761904761904,
+        "difference": 0.1551820728291316
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3272727272727272,
+        "difference": 0.3272727272727272
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_height",
+    "feature": "journey_swell_wave_height_max",
+    "scope": "large/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0326086956521739,
+        "difference": 0.0326086956521739
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0853658536585365,
+        "difference": 0.0853658536585365
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_period",
+    "feature": "journey_swell_wave_period_max",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0665188470066518,
+        "highest_bin_cancellation_rate": 0.0697305863708399,
+        "difference": 0.0032117393641881015
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1239669421487603,
+        "highest_bin_cancellation_rate": 0.0979228486646884,
+        "difference": -0.026044093484071912
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_period",
+    "feature": "journey_swell_wave_period_max",
+    "scope": "jet/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0547263681592039,
+        "highest_bin_cancellation_rate": 0.1008403361344537,
+        "difference": 0.0461139679752498
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1258741258741259,
+        "highest_bin_cancellation_rate": 0.1173184357541899,
+        "difference": -0.008555690119935982
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_period",
+    "feature": "journey_swell_wave_period_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0854700854700854,
+        "highest_bin_cancellation_rate": 0.0510948905109489,
+        "difference": -0.034375194959136504
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1428571428571428,
+        "highest_bin_cancellation_rate": 0.109375,
+        "difference": -0.033482142857142794
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "swell_period",
+    "feature": "journey_swell_wave_period_max",
+    "scope": "large/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.016,
+        "difference": 0.016
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0277777777777777,
+        "highest_bin_cancellation_rate": 0.0549450549450549,
+        "difference": 0.027167277167277203
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_cos_mean",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1375838926174496,
+        "highest_bin_cancellation_rate": 0.1029159519725557,
+        "difference": -0.03466794064489391
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1569148936170212,
+        "highest_bin_cancellation_rate": 0.2,
+        "difference": 0.0430851063829788
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_cos_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1506849315068493,
+        "highest_bin_cancellation_rate": 0.1404494382022472,
+        "difference": -0.010235493304602106
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1517857142857142,
+        "highest_bin_cancellation_rate": 0.3703703703703703,
+        "difference": 0.2185846560846561
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_cos_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1551724137931034,
+        "highest_bin_cancellation_rate": 0.0857142857142857,
+        "difference": -0.0694581280788177
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2203389830508474,
+        "highest_bin_cancellation_rate": 0.1428571428571428,
+        "difference": -0.0774818401937046
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_cos_mean",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0192307692307692,
+        "highest_bin_cancellation_rate": 0.0133333333333333,
+        "difference": -0.005897435897435901
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0813953488372093,
+        "highest_bin_cancellation_rate": 0.0277777777777777,
+        "difference": -0.053617571059431594
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_sin_mean",
+    "scope": "all",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1558073654390935,
+        "highest_bin_cancellation_rate": 0.0791925465838509,
+        "difference": -0.07661481885524259
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1829652996845426,
+        "highest_bin_cancellation_rate": 0.1408450704225352,
+        "difference": -0.0421202292620074
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_sin_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2123287671232876,
+        "highest_bin_cancellation_rate": 0.096938775510204,
+        "difference": -0.11538999161308361
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1785714285714285,
+        "highest_bin_cancellation_rate": 0.3181818181818182,
+        "difference": 0.13961038961038968
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_sin_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1764705882352941,
+        "highest_bin_cancellation_rate": 0.0700934579439252,
+        "difference": -0.1063771302913689
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2558139534883721,
+        "highest_bin_cancellation_rate": 0.0769230769230769,
+        "difference": -0.1788908765652952
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_direction",
+    "feature": "journey_wave_direction_sin_mean",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0380952380952381,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": -0.0380952380952381
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0972222222222222,
+        "highest_bin_cancellation_rate": 0.03125,
+        "difference": -0.0659722222222222
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_height",
+    "feature": "journey_wave_height_max",
+    "scope": "all",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3039832285115304,
+        "difference": 0.3039832285115304
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3542600896860987,
+        "difference": 0.3542600896860987
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_height",
+    "feature": "journey_wave_height_max",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3850267379679144,
+        "difference": 0.3850267379679144
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.452991452991453,
+        "difference": 0.452991452991453
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_height",
+    "feature": "journey_wave_height_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3333333333333333,
+        "difference": 0.3333333333333333
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3902439024390244,
+        "difference": 0.3902439024390244
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_height",
+    "feature": "journey_wave_height_max",
+    "scope": "large/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0490196078431372,
+        "difference": 0.0490196078431372
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.1129032258064516,
+        "difference": 0.1129032258064516
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_period",
+    "feature": "journey_wave_period_max",
+    "scope": "all",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1122807017543859,
+        "highest_bin_cancellation_rate": 0.0769230769230769,
+        "difference": -0.035357624831309
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2903225806451613,
+        "highest_bin_cancellation_rate": 0.104602510460251,
+        "difference": -0.18572007018491032
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_period",
+    "feature": "journey_wave_period_max",
+    "scope": "jet/東京",
+    "observed_relationship": "低い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1538461538461538,
+        "highest_bin_cancellation_rate": 0.0909090909090909,
+        "difference": -0.0629370629370629
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.3170731707317073,
+        "highest_bin_cancellation_rate": 0.1176470588235294,
+        "difference": -0.19942611190817794
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_period",
+    "feature": "journey_wave_period_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0857142857142857,
+        "highest_bin_cancellation_rate": 0.0793650793650793,
+        "difference": -0.006349206349206396
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.088235294117647,
+        "highest_bin_cancellation_rate": 0.0967741935483871,
+        "difference": 0.008538899430740099
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wave_period",
+    "feature": "journey_wave_period_max",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": 0.0
+      },
+      "test": {
+        "lowest_supported_bin": 2,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0128205128205128,
+        "highest_bin_cancellation_rate": 0.0743801652892562,
+        "difference": 0.0615596524687434
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_cos_mean",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1273885350318471,
+        "highest_bin_cancellation_rate": 0.0961214165261382,
+        "difference": -0.0312671185057089
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0737179487179487,
+        "highest_bin_cancellation_rate": 0.1541353383458646,
+        "difference": 0.08041738962791589
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_cos_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1568627450980392,
+        "highest_bin_cancellation_rate": 0.1020408163265306,
+        "difference": -0.05482192877150861
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0802139037433155,
+        "highest_bin_cancellation_rate": 0.1914893617021276,
+        "difference": 0.11127545795881211
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_cos_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0985915492957746,
+        "highest_bin_cancellation_rate": 0.1014492753623188,
+        "difference": 0.0028577260665442056
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0892857142857142,
+        "highest_bin_cancellation_rate": 0.2,
+        "difference": 0.1107142857142858
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_cos_mean",
+    "scope": "large/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.054054054054054,
+        "highest_bin_cancellation_rate": 0.0096153846153846,
+        "difference": -0.0444386694386694
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0158730158730158,
+        "highest_bin_cancellation_rate": 0.0461538461538461,
+        "difference": 0.0302808302808303
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_sin_mean",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1705685618729097,
+        "highest_bin_cancellation_rate": 0.0575296108291032,
+        "difference": -0.1130389510438065
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0865384615384615,
+        "highest_bin_cancellation_rate": 0.1111111111111111,
+        "difference": 0.02457264957264961
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_sin_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2674418604651162,
+        "highest_bin_cancellation_rate": 0.0617283950617283,
+        "difference": -0.2057134654033879
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1176470588235294,
+        "highest_bin_cancellation_rate": 0.1274900398406374,
+        "difference": 0.009842981017107996
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_sin_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1463414634146341,
+        "highest_bin_cancellation_rate": 0.0522875816993464,
+        "difference": -0.09405388171528771
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1282051282051282,
+        "highest_bin_cancellation_rate": 0.1037735849056603,
+        "difference": -0.024431543299467895
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_direction",
+    "feature": "journey_wind_direction_10m_sin_mean",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0333333333333333,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": -0.0333333333333333
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0212765957446808,
+        "highest_bin_cancellation_rate": 0.057471264367816,
+        "difference": 0.0361946686231352
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_speed",
+    "feature": "journey_wind_speed_10m_max",
+    "scope": "all",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0021551724137931,
+        "highest_bin_cancellation_rate": 0.2942583732057416,
+        "difference": 0.2921032007919485
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0354767184035476,
+        "highest_bin_cancellation_rate": 0.4418604651162791,
+        "difference": 0.4063837467127315
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_speed",
+    "feature": "journey_wind_speed_10m_max",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3926380368098159,
+        "difference": 0.3926380368098159
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0392156862745098,
+        "highest_bin_cancellation_rate": 0.6,
+        "difference": 0.5607843137254902
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_speed",
+    "feature": "journey_wind_speed_10m_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0075757575757575,
+        "highest_bin_cancellation_rate": 0.3466666666666667,
+        "difference": 0.33909090909090916
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 1,
+        "lowest_bin_cancellation_rate": 0.019047619047619,
+        "highest_bin_cancellation_rate": 0.109375,
+        "difference": 0.09032738095238099
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_speed",
+    "feature": "journey_wind_speed_10m_max",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0446428571428571,
+        "difference": 0.0446428571428571
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0240963855421686,
+        "highest_bin_cancellation_rate": 0.1111111111111111,
+        "difference": 0.0870147255689425
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_cos_mean",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1418181818181818,
+        "highest_bin_cancellation_rate": 0.0875420875420875,
+        "difference": -0.05427609427609428
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0671378091872791,
+        "highest_bin_cancellation_rate": 0.1605839416058394,
+        "difference": 0.09344613241856028
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_cos_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1626016260162601,
+        "highest_bin_cancellation_rate": 0.0979591836734693,
+        "difference": -0.0646424423427908
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0755813953488372,
+        "highest_bin_cancellation_rate": 0.2094594594594594,
+        "difference": 0.1338780641106222
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_cos_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1290322580645161,
+        "highest_bin_cancellation_rate": 0.0955882352941176,
+        "difference": -0.0334440227703985
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0666666666666666,
+        "highest_bin_cancellation_rate": 0.2,
+        "difference": 0.13333333333333341
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_cos_mean",
+    "scope": "large/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.054054054054054,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": -0.054054054054054
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0208333333333333,
+        "highest_bin_cancellation_rate": 0.0441176470588235,
+        "difference": 0.023284313725490197
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_sin_mean",
+    "scope": "all",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1971326164874552,
+        "highest_bin_cancellation_rate": 0.0484496124031007,
+        "difference": -0.1486830040843545
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0120481927710843,
+        "highest_bin_cancellation_rate": 0.1026894865525672,
+        "difference": 0.09064129378148289
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_sin_mean",
+    "scope": "jet/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2857142857142857,
+        "highest_bin_cancellation_rate": 0.0571428571428571,
+        "difference": -0.2285714285714286
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.1116504854368932,
+        "difference": 0.1116504854368932
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_sin_mean",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.2142857142857142,
+        "highest_bin_cancellation_rate": 0.0377358490566037,
+        "difference": -0.17654986522911048
+      },
+      "test": {
+        "lowest_supported_bin": 1,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.1372549019607843,
+        "highest_bin_cancellation_rate": 0.0784313725490196,
+        "difference": -0.05882352941176469
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "feature": "journey_wind_wave_direction_sin_mean",
+    "scope": "large/東京",
+    "observed_relationship": "期間で関係が変わる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0285714285714285,
+        "highest_bin_cancellation_rate": 0.0,
+        "difference": -0.0285714285714285
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0285714285714285,
+        "highest_bin_cancellation_rate": 0.0697674418604651,
+        "difference": 0.041196013289036604
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_height",
+    "feature": "journey_wind_wave_height_max",
+    "scope": "all",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3350785340314136,
+        "difference": 0.3350785340314136
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0524017467248908,
+        "highest_bin_cancellation_rate": 0.4597701149425287,
+        "difference": 0.4073683682176379
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_height",
+    "feature": "journey_wind_wave_height_max",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.4642857142857143,
+        "difference": 0.4642857142857143
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0395256916996047,
+        "highest_bin_cancellation_rate": 0.625,
+        "difference": 0.5854743083003953
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_height",
+    "feature": "journey_wind_wave_height_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.4084507042253521,
+        "difference": 0.4084507042253521
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 1,
+        "lowest_bin_cancellation_rate": 0.0495049504950495,
+        "highest_bin_cancellation_rate": 0.0597014925373134,
+        "difference": 0.010196542042263897
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_height",
+    "feature": "journey_wind_wave_height_max",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.0471698113207547,
+        "difference": 0.0471698113207547
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0531914893617021,
+        "highest_bin_cancellation_rate": 0.0377358490566037,
+        "difference": -0.015455640305098398
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_period",
+    "feature": "journey_wind_wave_period_max",
+    "scope": "all",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.3421750663129973,
+        "difference": 0.3421750663129973
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.055045871559633,
+        "highest_bin_cancellation_rate": 0.4555555555555555,
+        "difference": 0.40050968399592246
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_period",
+    "feature": "journey_wind_wave_period_max",
+    "scope": "jet/東京",
+    "observed_relationship": "高い範囲で欠航実績が多い",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.4722222222222222,
+        "difference": 0.4722222222222222
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0375,
+        "highest_bin_cancellation_rate": 0.6122448979591837,
+        "difference": 0.5747448979591837
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_period",
+    "feature": "journey_wind_wave_period_max",
+    "scope": "jet/熱海",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.4057971014492754,
+        "difference": 0.4057971014492754
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.0606060606060606,
+        "highest_bin_cancellation_rate": 0.1666666666666666,
+        "difference": 0.106060606060606
+      }
+    },
+    "status": "association_only_review_required"
+  },
+  {
+    "item": "wind_wave_period",
+    "feature": "journey_wind_wave_period_max",
+    "scope": "large/東京",
+    "observed_relationship": "比較できる範囲が期間で異なる",
+    "periods": {
+      "validation": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 3,
+        "lowest_bin_cancellation_rate": 0.0,
+        "highest_bin_cancellation_rate": 0.048076923076923,
+        "difference": 0.048076923076923
+      },
+      "test": {
+        "lowest_supported_bin": 0,
+        "highest_supported_bin": 2,
+        "lowest_bin_cancellation_rate": 0.057471264367816,
+        "highest_bin_cancellation_rate": 0.0185185185185185,
+        "difference": -0.038952745849297504
+      }
+    },
+    "status": "association_only_review_required"
+  }
+]

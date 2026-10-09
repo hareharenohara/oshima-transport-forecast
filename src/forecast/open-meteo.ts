@@ -8,7 +8,7 @@ type ApiPayload = { hourly?: Record<string, Array<string | number | null>>; hour
 
 const parseJst = (value: string) => Date.parse(`${value}:00+09:00`);
 
-export async function fetchBatch(base: string, variables: readonly string[], fetchFn: typeof fetch, model?: string): Promise<HourlyPoint[]> {
+export async function fetchBatch(base: string, variables: readonly string[], fetchFn: typeof fetch, model?: string, allowMissing=false): Promise<HourlyPoint[]> {
   const url = new URL(base);
   url.searchParams.set("latitude", FORECAST_POINTS.map((p) => p.latitude).join(","));
   url.searchParams.set("longitude", FORECAST_POINTS.map((p) => p.longitude).join(","));
@@ -35,7 +35,10 @@ export async function fetchBatch(base: string, variables: readonly string[], fet
       const values: Record<string, number> = {};
       for (const variable of variables) {
         const raw = payload.hourly?.[variable]?.[index];
-        if (typeof raw !== "number" || !Number.isFinite(raw)) throw new Error(`Open-Meteo ${point.id}: ${variable}[${index}] missing`);
+        if (typeof raw !== "number" || !Number.isFinite(raw)) {
+          if(allowMissing)continue;
+          throw new Error(`Open-Meteo ${point.id}: ${variable}[${index}] missing`);
+        }
         values[variable] = raw;
       }
       return { locationId: point.id, timestampMs: parseJst(String(time)), values };

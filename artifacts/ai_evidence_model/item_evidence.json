@@ -1,0 +1,392 @@
+[
+  {
+    "item": "wind_speed",
+    "label": "風速",
+    "unit": "m/s",
+    "feature_count": 126,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.004575847631761554,
+        "day_bootstrap_95_interval": [
+          -0.028194469302116915,
+          0.04085465877643953
+        ],
+        "brier_gain": 0.0002722440431047468
+      },
+      "test": {
+        "pr_auc_gain": -0.0045559602100875285,
+        "day_bootstrap_95_interval": [
+          -0.029521006948141453,
+          0.018311297907888578
+        ],
+        "brier_gain": -0.0004040102416610486
+      }
+    },
+    "assessment": "期間依存・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "gusts",
+    "label": "突風",
+    "unit": "m/s",
+    "feature_count": 95,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.016021067268896072,
+        "day_bootstrap_95_interval": [
+          -0.00957360619376201,
+          0.04307611083408833
+        ],
+        "brier_gain": 0.0015761360569035016
+      },
+      "test": {
+        "pr_auc_gain": 0.016352489117230085,
+        "day_bootstrap_95_interval": [
+          -0.015476822519133324,
+          0.05035928179230046
+        ],
+        "brier_gain": 0.0009948130890038848
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "wind_direction",
+    "label": "風向",
+    "unit": "sin/cos",
+    "feature_count": 10,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": -0.005279432804448092,
+        "day_bootstrap_95_interval": [
+          -0.01634309583369383,
+          0.002614075685782675
+        ],
+        "brier_gain": -0.0003482975686873793
+      },
+      "test": {
+        "pr_auc_gain": -0.01190123157629941,
+        "day_bootstrap_95_interval": [
+          -0.02455129621634567,
+          -0.0012520039061030663
+        ],
+        "brier_gain": -0.0011631405956943064
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "wave_height",
+    "label": "波高",
+    "unit": "m",
+    "feature_count": 148,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.12730303161563084,
+        "day_bootstrap_95_interval": [
+          0.052068688689385315,
+          0.17840728255743452
+        ],
+        "brier_gain": 0.007087931882784261
+      },
+      "test": {
+        "pr_auc_gain": -0.03673196606813456,
+        "day_bootstrap_95_interval": [
+          -0.12219914268852536,
+          0.037574420803580796
+        ],
+        "brier_gain": -0.0005573824356269186
+      }
+    },
+    "assessment": "期間依存・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "wave_period",
+    "label": "波周期",
+    "unit": "s",
+    "feature_count": 40,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.010657224617788397,
+        "day_bootstrap_95_interval": [
+          -0.008877330405784022,
+          0.031023998468301853
+        ],
+        "brier_gain": 0.0004358121897271583
+      },
+      "test": {
+        "pr_auc_gain": 0.008208926868873867,
+        "day_bootstrap_95_interval": [
+          -0.006665782147813678,
+          0.030864276822709456
+        ],
+        "brier_gain": 0.0008112058422928142
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "wave_direction",
+    "label": "波向",
+    "unit": "sin/cos",
+    "feature_count": 10,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": -0.006908663717046792,
+        "day_bootstrap_95_interval": [
+          -0.018947107931432883,
+          0.006995718906955623
+        ],
+        "brier_gain": -0.0005755233291129466
+      },
+      "test": {
+        "pr_auc_gain": 0.006353739702142591,
+        "day_bootstrap_95_interval": [
+          -0.00489355329616884,
+          0.019022182402509212
+        ],
+        "brier_gain": 0.0006606955574095658
+      }
+    },
+    "assessment": "期間依存・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "wind_wave_height",
+    "label": "風浪高さ",
+    "unit": "m",
+    "feature_count": 15,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": -7.30563672363127e-05,
+        "day_bootstrap_95_interval": [
+          -0.003680775987059323,
+          0.00325991456085151
+        ],
+        "brier_gain": -8.341861532923378e-07
+      },
+      "test": {
+        "pr_auc_gain": -0.006240424934128019,
+        "day_bootstrap_95_interval": [
+          -0.02195460277533973,
+          0.004540958998137064
+        ],
+        "brier_gain": -0.0007431984408232256
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "wind_wave_period",
+    "label": "風浪周期",
+    "unit": "s",
+    "feature_count": 15,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.0035799065996166,
+        "day_bootstrap_95_interval": [
+          -0.0011971067961198815,
+          0.011553524164750015
+        ],
+        "brier_gain": 0.0002220948801584105
+      },
+      "test": {
+        "pr_auc_gain": -0.00575465583727508,
+        "day_bootstrap_95_interval": [
+          -0.015780008793000705,
+          0.0038882135661305077
+        ],
+        "brier_gain": -0.0006016918041465286
+      }
+    },
+    "assessment": "期間依存・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "wind_wave_direction",
+    "label": "風浪方向",
+    "unit": "sin/cos",
+    "feature_count": 10,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.006114861302459196,
+        "day_bootstrap_95_interval": [
+          -0.01238634462250881,
+          0.02145038506362418
+        ],
+        "brier_gain": 0.000528969886458619
+      },
+      "test": {
+        "pr_auc_gain": -0.02442634244291264,
+        "day_bootstrap_95_interval": [
+          -0.043791474202871036,
+          -0.0069417151414658505
+        ],
+        "brier_gain": -0.0023983911184304457
+      }
+    },
+    "assessment": "期間依存・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "swell_height",
+    "label": "うねり高さ",
+    "unit": "m",
+    "feature_count": 70,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.005688083764451846,
+        "day_bootstrap_95_interval": [
+          -0.018256143882596547,
+          0.025819973569834172
+        ],
+        "brier_gain": -5.364446106166654e-06
+      },
+      "test": {
+        "pr_auc_gain": 0.0046878900754450115,
+        "day_bootstrap_95_interval": [
+          -0.01105954164930571,
+          0.024355466244640384
+        ],
+        "brier_gain": 0.0004552269906135109
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "swell_period",
+    "label": "うねり周期",
+    "unit": "s",
+    "feature_count": 40,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": -0.01382765303791933,
+        "day_bootstrap_95_interval": [
+          -0.060809306600596504,
+          0.02558259397324127
+        ],
+        "brier_gain": -0.0006181775195627168
+      },
+      "test": {
+        "pr_auc_gain": -0.051276967241493554,
+        "day_bootstrap_95_interval": [
+          -0.09087416469439676,
+          -0.014805655052936722
+        ],
+        "brier_gain": -0.003169749531775623
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "swell_direction",
+    "label": "うねり方向",
+    "unit": "sin/cos",
+    "feature_count": 10,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": -0.007382566279638847,
+        "day_bootstrap_95_interval": [
+          -0.020604444892577442,
+          0.002256453414617271
+        ],
+        "brier_gain": -0.0001797108858296384
+      },
+      "test": {
+        "pr_auc_gain": -0.00039100546179648976,
+        "day_bootstrap_95_interval": [
+          -0.007994147657472065,
+          0.006799293946779708
+        ],
+        "brier_gain": -7.88163108306067e-05
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "pressure",
+    "label": "気圧",
+    "unit": "hPa",
+    "feature_count": 40,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": -0.01328093996469859,
+        "day_bootstrap_95_interval": [
+          -0.05145271003690531,
+          0.02022263947328854
+        ],
+        "brier_gain": 0.0002935782740682083
+      },
+      "test": {
+        "pr_auc_gain": 0.013892791518534064,
+        "day_bootstrap_95_interval": [
+          -0.019872105125559567,
+          0.04954156006070697
+        ],
+        "brier_gain": 0.0015367555446149511
+      }
+    },
+    "assessment": "期間依存・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "precipitation",
+    "label": "降水量",
+    "unit": "mm",
+    "feature_count": 11,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": -0.009885277223969369,
+        "day_bootstrap_95_interval": [
+          -0.026843077745755724,
+          0.005575967634888034
+        ],
+        "brier_gain": -0.00010589814209334414
+      },
+      "test": {
+        "pr_auc_gain": 0.01699932959031769,
+        "day_bootstrap_95_interval": [
+          0.003533311660566208,
+          0.02927134357694073
+        ],
+        "brier_gain": 0.0016128671759785135
+      }
+    },
+    "assessment": "期間依存・未確定",
+    "ai_use_status": "review_required"
+  },
+  {
+    "item": "cloud",
+    "label": "雲量",
+    "unit": "%",
+    "feature_count": 15,
+    "periods": {
+      "validation": {
+        "pr_auc_gain": 0.005964845819872666,
+        "day_bootstrap_95_interval": [
+          -0.009880242352961935,
+          0.01993847729476878
+        ],
+        "brier_gain": 0.00014384862430921047
+      },
+      "test": {
+        "pr_auc_gain": 0.00785132471638661,
+        "day_bootstrap_95_interval": [
+          -0.0005787380979404566,
+          0.0193113142022255
+        ],
+        "brier_gain": 0.0006872273089286035
+      }
+    },
+    "assessment": "有用性の候補・未確定",
+    "ai_use_status": "review_required"
+  }
+]

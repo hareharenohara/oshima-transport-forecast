@@ -1,0 +1,8 @@
+{
+  "reloaded_prediction_max_error": 1.6653345369377348e-15,
+  "profiles_reconcile": true,
+  "no_outcome_fields": true,
+  "missing_and_boundary_checks": true,
+  "feature_columns": 733,
+  "rows": 8937
+}

@@ -28,7 +28,7 @@ The request body limit is 16 KiB. Responses use `Cache-Control: no-store` becaus
 
 ## Multi-model assessment
 
-`POST /api/assess` accepts the same service object. It returns all complete weather/marine ML combinations, their comparison statistics, explicit source failures, the intermediate AI summary, and the final assessment. The AI result uses `evaluation_grade` (`S`, `A`, `B`, `C`, or `D`) and `confidence_level` (`1` through `5`). It does not generate a final percentage. Numeric `operation_probability` values belong only to the ML result and are presented as statistical reference values.
+`POST /api/assess` accepts the same service object. It returns all complete weather/marine ML combinations, their comparison statistics, explicit source failures, the intermediate AI summary, and the final assessment. The AI result uses `evaluation_grade` (`A`, `B`, `C`, or `D`) and `confidence_level` (`1` through `5`). It does not generate a final percentage. Numeric `operation_probability` values belong only to the ML result and are presented as statistical reference values.
 
 If `GEMINI_API_KEY` is missing or either Gemini stage fails, the request still succeeds with the multi-model result, `aiStatus: "unavailable"`, and `ai: null`. Forecast coverage too small to compare at least two valid combinations returns HTTP 503.
 
@@ -51,3 +51,5 @@ Official status fields are sourced from the Tokai Kisen same-day operation page 
 - `DELETE /api/push/subscriptions?id=...` removes the caller's stored subscription identifier.
 
 Push endpoints and encryption keys are never returned by stored prediction APIs. The subscription identifier returned at enrollment is retained by the browser for later removal.
+
+Generated assessments select A/B (operation) or C/D (cancellation) from available evidence. Uncertainty, model disagreement and partial missingness reduce confidence; they never force a grade. Fetch or AI failures retain previous successful forecasts rather than inventing C. Historical grades remain stored as-is; legacy neutral B is not mapped to new B or C.

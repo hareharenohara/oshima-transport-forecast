@@ -106,7 +106,10 @@ export async function notifyPredictionChanges(env: PushEnv, service: ServiceInpu
   if (current === null) return 0;
   const previous = await env.DB.prepare(`SELECT
     (SELECT AVG(operation_probability) * 100 FROM ml_predictions m WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = a.service_id) value,
-    port_prediction FROM ai_predictions a JOIN forecast_runs r ON r.id=a.forecast_run_id
+    COALESCE(a.port_prediction,(SELECT json_extract(g.assessment_json,'$.port_prediction') FROM group_forecasts g
+      WHERE g.forecast_run_id=a.forecast_run_id AND g.ai_status='generated'
+        AND EXISTS(SELECT 1 FROM json_each(g.member_ids_json) WHERE value=a.service_id) LIMIT 1)) AS port_prediction
+    FROM ai_predictions a JOIN forecast_runs r ON r.id=a.forecast_run_id
     WHERE a.service_id = ? AND r.status IN ('completed','partial')
       AND (r.publish_at IS NULL OR r.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     ORDER BY a.created_at DESC LIMIT 1 OFFSET 1`).bind(service.serviceId).first<{ value: number | null; port_prediction: string | null }>();
@@ -121,7 +124,7 @@ export async function notifyPredictionChanges(env: PushEnv, service: ServiceInpu
     });
     const active = new Set(events);
     const states = await env.DB.prepare("SELECT event_key FROM notification_states WHERE subscription_id = ? AND service_id = ?").bind(subscriber.id, service.serviceId).all<{ event_key: string }>();
-    for (const state of states.results) if (!active.has(state.event_key)) {
+    for (const state of states.results) if (!state.event_key.startsWith('official:')&&!active.has(state.event_key)) {
       await env.DB.prepare("DELETE FROM notification_states WHERE subscription_id = ? AND service_id = ? AND event_key = ?").bind(subscriber.id, service.serviceId, state.event_key).run();
     }
     for (const eventKey of events) {
@@ -136,4 +139,34 @@ export async function notifyPredictionChanges(env: PushEnv, service: ServiceInpu
     }
   }
   return sent;
+}
+
+/** Official status changes have their own event state, independent of AI targets. */
+export async function notifyOfficialStatusChanges(env:PushEnv,fetchFn:typeof fetch=fetch):Promise<number>{
+ if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY||!env.VAPID_SUBJECT)return 0;
+ const subscribers=await env.DB.prepare(`SELECT s.id,s.endpoint,p.route_group FROM push_subscriptions s
+   JOIN user_notification_preferences p ON p.subscription_id=s.id WHERE p.notify_official_update=1`).all<{id:string;endpoint:string;route_group:string}>();
+ if(!subscribers.results.length)return 0;
+ const rows=await env.DB.prepare(`SELECT s.id,s.counterpart_terminal,o.status,o.port FROM services s
+   JOIN official_service_statuses o ON o.service_id=s.id WHERE s.schedule_active=1
+     AND s.service_date=date('now','+9 hours') AND date(o.source_updated_at,'+9 hours')=s.service_date`).all<{id:string;counterpart_terminal:string;status:string;port:string|null}>();
+ let sent=0;
+ for(const row of rows.results)for(const subscriber of subscribers.results){
+  if(!routeMatches(subscriber.route_group,row.counterpart_terminal))continue;
+  const key=`official:${JSON.stringify([row.status,row.port])}`;
+  const states=await env.DB.prepare(`SELECT event_key FROM notification_states WHERE subscription_id=? AND service_id=? AND event_key LIKE 'official:%'`).bind(subscriber.id,row.id).all<{event_key:string}>();
+  if(states.results.some(state=>state.event_key===key))continue;
+  const claimed=await env.DB.prepare(`INSERT OR IGNORE INTO notification_states(subscription_id,service_id,event_key,last_notified_at) VALUES(?,?,?,?)`).bind(subscriber.id,row.id,key,new Date().toISOString()).run();
+  if(claimed.meta.changes!==1)continue;
+  let delivered=false;
+  try{
+   const response=await fetchFn(subscriber.endpoint,{method:'POST',headers:await vapidHeaders(subscriber.endpoint,env.VAPID_PUBLIC_KEY,env.VAPID_PRIVATE_KEY,env.VAPID_SUBJECT)});
+   delivered=response.ok;if(delivered)sent++;
+   else if([404,410].includes(response.status))await removeSubscription(env.DB,subscriber.id);
+  }catch{/* Retry on a later official refresh. */}
+  if(delivered){
+   for(const state of states.results)await env.DB.prepare(`DELETE FROM notification_states WHERE subscription_id=? AND service_id=? AND event_key=?`).bind(subscriber.id,row.id,state.event_key).run();
+  }else await env.DB.prepare(`DELETE FROM notification_states WHERE subscription_id=? AND service_id=? AND event_key=?`).bind(subscriber.id,row.id,key).run();
+ }
+ return sent;
 }

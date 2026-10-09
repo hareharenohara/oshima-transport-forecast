@@ -3,13 +3,14 @@ import { NAKAMURA_PUBLIC } from "../knowledge/nakamura-public.js";
 import { TOKAI_KISEN_OFFICIAL } from "../knowledge/tokai-kisen-official.js";
 import type { HourlyPoint, ServiceInput } from "../types.js";
 import type { MultiModelSources } from "./multi-model.js";
+import { forecastSampleWindow } from "./sample-window.js";
 
 const HOUR = 3_600_000;
-const TERMINAL_POINTS: Record<string, readonly string[]> = {
+export const TERMINAL_POINTS: Record<string, readonly string[]> = {
   東京: ["tokyo_port"], 横浜: ["tokyo_bay_mouth"], 久里浜: ["uraga_channel"],
   熱海: ["atami_offshore"], 伊東: ["ito_offshore"], 稲取: ["inatori_offshore"], 館山: ["tateyama_offshore"]
 };
-const OSHIMA_POINTS = ["oshima_north_okata", "oshima_west_motomachi"] as const;
+export const OSHIMA_POINTS = ["oshima_north_okata", "oshima_west_motomachi"] as const;
 
 export interface PreviousPredictionContext {
   evaluationGrade: string | null;
@@ -43,6 +44,11 @@ function nearest(rows: HourlyPoint[], locations: Set<string>, target: number, va
 }
 
 function phase(rows: HourlyPoint[], locations: Set<string>, start: number, end: number, variable: string, mode: "max" | "mean"): number | null {
+  const originalStart=start,originalEnd=end;
+  [start,end]=forecastSampleWindow(start,end);
+  if(start!==originalStart||end!==originalEnd){
+    if(![start,end].every(time=>rows.some(row=>locations.has(row.locationId)&&row.timestampMs===time&&Number.isFinite(row.values[variable]))))return null;
+  }
   const values = finite(rows.filter((row) => locations.has(row.locationId) && row.timestampMs >= start && row.timestampMs <= end).map((row) => row.values[variable]));
   if (!values.length) return null;
   if (variable.includes("direction")) {
@@ -94,6 +100,8 @@ export function buildJudgmentContext(service: ServiceInput, ml: unknown, sources
   const officialCriteria = [
     ...weather.map((item) => ({ criterion: `${service.shipType}_route_wind`, model: item.model, unit: "m/s", ...thresholdStatus(item.phases.route.wind_speed_10m ?? null, routeWindThreshold) })),
     ...marine.map((item) => ({ criterion: `${service.shipType}_route_wave`, model: item.model, unit: "m", ...thresholdStatus(item.phases.route.wave_height ?? null, routeWaveThreshold) })),
+    ...weather.map((item) => ({ criterion: `${service.shipType}_route_navigation_change_wind`, model: item.model, unit: "m/s", ...thresholdStatus(item.phases.route.wind_speed_10m ?? null, official.route.navigationChange.windMs) })),
+    ...marine.map((item) => ({ criterion: `${service.shipType}_route_navigation_change_wave`, model: item.model, unit: "m", ...thresholdStatus(item.phases.route.wave_height ?? null, official.route.navigationChange.waveM) })),
     ...(service.direction === "to_oshima" ? weather.map((item) => ({ criterion: `${service.shipType}_oshima_entry_wind`, model: item.model, unit: "m/s", ...thresholdStatus(item.phases.arrival.wind_speed_10m ?? null, entry.windMs) })) : []),
     ...(service.direction === "to_oshima" ? marine.map((item) => ({ criterion: `${service.shipType}_oshima_entry_wave`, model: item.model, unit: "m", ...thresholdStatus(item.phases.arrival.wave_height ?? null, entry.waveM) })) : []),
     ...(service.shipType === "jet" && service.direction === "to_oshima" && service.counterpartTerminal in TOKAI_KISEN_OFFICIAL.jet.departurePorts
@@ -101,6 +109,18 @@ export function buildJudgmentContext(service: ServiceInput, ml: unknown, sources
     ...(service.shipType === "jet" && service.direction === "to_oshima" && service.counterpartTerminal in TOKAI_KISEN_OFFICIAL.jet.departurePorts
       ? marine.map((item) => ({ criterion: `jet_departure_port_wave_${service.counterpartTerminal}`, model: item.model, unit: "m", ...thresholdStatus(item.phases.departure.wave_height ?? null, TOKAI_KISEN_OFFICIAL.jet.departurePorts[service.counterpartTerminal as keyof typeof TOKAI_KISEN_OFFICIAL.jet.departurePorts].waveM) })) : [])
   ];
+  // Experience guides apply only to measured forecast values in Sagami-nada,
+  // not to a maximum from Tokyo harbour or the whole route.
+  const experienceCriteria = service.shipType === "jet" ? [
+    ...sources.weather.flatMap(source => {
+      const value = phase(source.rows, new Set(routeIds.filter(id => id.startsWith("sagami_"))), start, end, "wind_speed_10m", "max");
+      return value === null ? [] : [{ criterion:"nakamura_sagami_wind", model:source.model.label, forecast:value, threshold:NAKAMURA_PUBLIC.jet.sagamiWindGuideMs, reached:value >= NAKAMURA_PUBLIC.jet.sagamiWindGuideMs }];
+    }),
+    ...sources.marine.flatMap(source => {
+      const value = phase(source.rows, new Set(routeIds.filter(id => id.startsWith("sagami_"))), start, end, "wave_height", "max");
+      return value === null ? [] : [{ criterion:"nakamura_sagami_wave", model:source.model.label, forecast:value, threshold:NAKAMURA_PUBLIC.jet.sagamiWaveGuideM, reached:value >= NAKAMURA_PUBLIC.jet.sagamiWaveGuideM }];
+    })
+  ] : [];
   return {
     service,
     timing: { departure: service.scheduledDepartureJst, arrival: service.scheduledArrivalJst, forecastHorizonHours: Math.max(0, (start - now.getTime()) / HOUR) },
@@ -110,6 +130,7 @@ export function buildJudgmentContext(service: ServiceInput, ml: unknown, sources
     officialKnowledge: TOKAI_KISEN_OFFICIAL,
     officialCriteria,
     publicExperience: NAKAMURA_PUBLIC,
+    experienceCriteria,
     previousPrediction: previous,
     dataQuality: {
       weatherModelsAvailable: sources.weather.length,

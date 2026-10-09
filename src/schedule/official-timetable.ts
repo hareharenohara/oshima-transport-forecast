@@ -111,7 +111,24 @@ function ruleMatches(rule: string, date: string, periodStart: string, calendar: 
   if (compact === "毎日") return true;
   if (compact === "月～金曜" || compact === "平日") return weekday >= 1 && weekday <= 5;
   if (compact === "土・日曜" || compact === "土休日") return weekday === 0 || weekday === 6;
+  const weekdays = "日月火水木金土";
+  const range = compact.match(/^([日月火水木金土])～([日月火水木金土])曜$/);
+  if (range) {
+    const start = weekdays.indexOf(range[1]!);
+    const end = weekdays.indexOf(range[2]!);
+    return start <= end ? weekday >= start && weekday <= end : weekday >= start || weekday <= end;
+  }
+  if (/^[日月火水木金土](?:・[日月火水木金土])*曜$/.test(compact)) {
+    return compact.slice(0, -1).split("・").includes(weekdays[weekday]!);
+  }
   return listedDates(compact, Number(periodStart.slice(0, 4)), Number(periodStart.slice(5, 7))).includes(date);
+}
+
+function officialShipType(value: string): "jet" | "large" | null {
+  if (/^ジェット船(?:\s+セブンアイランド[^\s]+)?$/.test(value)) return "jet";
+  // Other operators (e.g. おがさわら丸 and くろしお丸) use different vessels/models.
+  if (/^大型客船(?:\s+(?:さるびあ丸|橘丸))?$/.test(value)) return "large";
+  return null;
 }
 
 function timeValue(value: string): { time: string; nextDay: boolean } | null {
@@ -140,7 +157,7 @@ export function parseOfficialTimetablePage(html: string, sourceUrl: string, date
     for (let column = 2; column < code.length; column++) {
       const number = code[column];
       if (!number || !/^\d{4}$/.test(number)) continue;
-      const shipType = ships[column] === "ジェット船" ? "jet" : ships[column] === "大型客船" ? "large" : null;
+      const shipType = officialShipType(ships[column] ?? "");
       if (!shipType) continue;
       const legs = [
         { origin: "東京", destination: "大島" },
@@ -207,10 +224,20 @@ export class OfficialTimetableProvider implements ScheduleProvider {
   readonly name = "tokai-kisen-official-html";
   readonly sourceUrl = INDEX_URL;
   readonly sourceVersion = "official-period-html-v1";
+  private readonly cache = new Map<string, Uint8Array>();
   constructor(private readonly fetchFn: typeof fetch = fetch) {}
 
+  private async bytes(url: string, limit: number): Promise<Uint8Array> {
+    const cached = this.cache.get(url);
+    if (cached) return cached;
+    const fetchFn=this.fetchFn;
+    const bytes = await boundedResponse(await fetchFn(url, { signal: AbortSignal.timeout(8_000) }), limit);
+    this.cache.set(url, bytes);
+    return bytes;
+  }
+
   async load(fromDate: string, toDate: string): Promise<ScheduleService[]> {
-    const index = new TextDecoder().decode(await boundedResponse(await this.fetchFn(INDEX_URL), MAX_HTML_BYTES));
+    const index = new TextDecoder().decode(await this.bytes(INDEX_URL, MAX_HTML_BYTES));
     const calendar = verifiedJetCalendar();
     const groups = new Map<string, { link: PeriodLink; dates: string[] }>();
     for (let date = fromDate; date <= toDate; date = addDays(date, 1)) {
@@ -224,12 +251,12 @@ export class OfficialTimetableProvider implements ScheduleProvider {
     const result: ScheduleService[] = [];
     let calendarChecked = false;
     for (const { link, dates } of groups.values()) {
-      const bytes = await boundedResponse(await this.fetchFn(link.url), MAX_HTML_BYTES);
+      const bytes = await this.bytes(link.url, MAX_HTML_BYTES);
       const html = new TextDecoder().decode(bytes);
       if (/[ABC](?:・[ABC])?/.test(html.match(/<table\b[\s\S]*?<\/table>/)?.[0] ?? "") || html.includes("高速ジェット船運航日カレンダー")) {
         if (!html.includes(JET_CALENDAR_IMAGE)) throw new Error("Official A/B/C calendar image changed");
         if (!calendarChecked) {
-          const image = await boundedResponse(await this.fetchFn(JET_CALENDAR_IMAGE), MAX_IMAGE_BYTES);
+          const image = await this.bytes(JET_CALENDAR_IMAGE, MAX_IMAGE_BYTES);
           if (await sha256(image) !== JET_CALENDAR_SHA256) throw new Error("Official A/B/C calendar image contents changed");
           calendarChecked = true;
         }
