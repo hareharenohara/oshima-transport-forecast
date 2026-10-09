@@ -55,7 +55,7 @@ test("phase 6 UI renders stored history and handles a missing previous AI delta"
   assert.doesNotMatch(script, /%/);
   assert.match(script, /前回差は算出できません/);
   assert.match(script, /textContent\.replace\('nullポイント'/);
-  assert.match(serviceWorker, /oshima-route-v23/);
+  assert.match(serviceWorker, /oshima-route-v25/);
 });
 
 test("worker serves model-separated weather chart assets", async () => {
@@ -68,7 +68,7 @@ test("worker serves model-separated weather chart assets", async () => {
   assert.match(script, /モデル別/);
   assert.match(script, /Asia\/Tokyo/);
   assert.match(script, /日本時間/);
-  assert.match(serviceWorker, /oshima-route-v23/);
+  assert.match(serviceWorker, /oshima-route-v25/);
 });
 
 test("worker serves collapsed days and official status presentation", async () => {

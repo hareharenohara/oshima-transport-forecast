@@ -15,8 +15,10 @@ export const GRADE_GAUGE_CSS = `
 .day-summary{gap:10px}
 .day-summary .grade-gauge{padding:0}
 .daily-overview{margin:12px 0 18px;padding:0;text-align:left}
-.daily-overview .grade-status{align-items:flex-start;margin:0}
-.daily-overview .grade-badge{margin-top:2px}
+.assessment-overview{margin:13px 0 0;padding:0;text-align:left}
+.detail-overview .assessment-overview{grid-column:1/-1;margin-top:0}
+.daily-overview .grade-status,.assessment-overview .grade-status{align-items:flex-start;margin:0}
+.daily-overview .grade-badge,.assessment-overview .grade-badge{margin-top:2px}
 .grade-comment{font-size:13px;font-weight:400;line-height:1.8}
 .grade-comment small{font-size:11px;color:var(--muted)}
 .service .grade-badge{width:46px;height:32px;min-width:46px;border-radius:9px;font-size:16px;color:var(--grade-on-color)}
