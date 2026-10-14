@@ -6,6 +6,7 @@ import { WEATHER_MODELS, MARINE_MODELS, type MultiModelSources } from "../src/fo
 import { groupForecastServices } from "../src/pipeline/forecast-groups.js";
 import { buildGroupJudgmentMaterial, mergeIntervals } from "../src/pipeline/group-judgment.js";
 import { packDirectJudgments } from "../src/groq/client.js";
+import { buildPortMaterial } from "../src/pipeline/port-material.js";
 import type { HourlyPoint, ServiceInput } from "../src/types.js";
 
 const now=new Date("2026-10-07T00:00:00+09:00"),date="2026-10-11",base=Date.parse(`${date}T00:00:00+09:00`);
@@ -26,6 +27,23 @@ function material(services:ServiceInput[],data:MultiModelSources) {
 function set(rows:HourlyPoint[],hour:number,point:string,values:Record<string,number>) {
  Object.assign(rows.find(row=>row.timestampMs===base+hour*3600000&&row.locationId===point)!.values,values);
 }
+
+test('daily port summary preserves port/model differences, excludes idle hours and marks missing coverage',()=>{
+ const data=sources(),services=[service(8),service(14)];
+ set(data.weather[0]!.rows,10,'oshima_west_motomachi',{wind_speed_10m:9,wind_direction_10m:210,precipitation:.3});
+ set(data.weather[0]!.rows,10,'oshima_north_okata',{wind_speed_10m:4,wind_direction_10m:90});
+ set(data.weather[0]!.rows,13,'oshima_west_motomachi',{wind_speed_10m:99});
+ data.marine[0]!.rows=data.marine[0]!.rows.filter(row=>!(row.locationId==='oshima_north_okata'&&row.timestampMs===base+10*3600000));
+ const material=buildPortMaterial(date,services,data);
+ assert.deepEqual(material.weather[0]![0],[[9,600,210],.3,0]);
+ assert.deepEqual(material.weather[1]![0],[[4,600,90],0,0]);
+ assert.equal(material.sea[1]![0]![2],1);
+ assert.equal(material.morningLarge,0);
+ const items=services.map(service=>({serviceId:service.serviceId,input:{...buildJudgmentContext(service,{},data),portMaterial:material}}));
+ const packed=packDirectJudgments(items);
+ assert.deepEqual(packed.portMaterial,material);
+ assert.equal(JSON.stringify(packed).split('"portMaterial"').length-1,1);
+});
 
 test('short operations use enclosing forecasts without inventing a missing endpoint',()=>{
  const data=sources(),short=service(9+10/60,9+55/60,'熱海');
@@ -94,7 +112,7 @@ test("zero, missing hourly coverage, rain times and unavailable model remain dis
  assert.equal(route.wind[1]!.missing,false);
  assert.deepEqual(result.regions.find(row=>row.area==='大島側')!.rain[0]!.wetHours,[600]);
  assert.equal(result.policy.flags&2,0);
- assert.equal(result.policy.confidenceCeiling,2);
+ assert.equal("confidenceCeiling" in result.policy,false);
 });
 
 test("group transport does not grow per member when operating conditions are identical",()=>{

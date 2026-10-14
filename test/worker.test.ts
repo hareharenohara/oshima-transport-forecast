@@ -8,7 +8,7 @@ test("worker health reports model versions", async () => {
   const response = await handleRequest(new Request("https://example.test/health"));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: "ok", modelVersion: "v2-ensemble-1", featuresVersion: "v1-127+v2-hybrid-1",
-    aiModel:"openai/gpt-oss-120b",aiSummaryModel:null,aiPromptVersion:"assessment-v24-abcd-japanese-labels",groupedForecastHorizons:[2,3,4] });
+    aiModel:"openai/gpt-oss-120b",aiSummaryModel:null,aiPromptVersion:"assessment-v32-compact-port",groupedForecastHorizons:[2,3,4] });
 });
 
 test("worker serves the mobile forecast UI with security headers", async () => {
@@ -43,7 +43,7 @@ test("worker serves installable Phase 5 PWA assets", async () => {
   assert.match(serviceWorker, /x-offline-stale/);
 });
 
-test("phase 6 UI renders stored history and handles a missing previous AI delta", async () => {
+test("phase 6 UI renders stored history in the designated detail fold", async () => {
   const html = await (await handleRequest(new Request("https://example.test/"))).text();
   const script = await (await handleRequest(new Request("https://example.test/phase6.js"))).text();
   const serviceWorker = await (await handleRequest(new Request("https://example.test/sw.js"))).text();
@@ -53,9 +53,10 @@ test("phase 6 UI renders stored history and handles a missing previous AI delta"
   assert.match(script, /action_guidance\?\.grade/);
   assert.doesNotMatch(script, /operationProbability/);
   assert.doesNotMatch(script, /%/);
-  assert.match(script, /前回差は算出できません/);
-  assert.match(script, /textContent\.replace\('nullポイント'/);
-  assert.match(serviceWorker, /oshima-route-v25/);
+  assert.match(script, /service-detail-ready/);
+  assert.match(script, /data-history-chart/);
+  assert.doesNotMatch(script, /MutationObserver|detailTarget/);
+  assert.match(serviceWorker, /oshima-route-v61/);
 });
 
 test("worker serves model-separated weather chart assets", async () => {
@@ -68,7 +69,7 @@ test("worker serves model-separated weather chart assets", async () => {
   assert.match(script, /モデル別/);
   assert.match(script, /Asia\/Tokyo/);
   assert.match(script, /日本時間/);
-  assert.match(serviceWorker, /oshima-route-v25/);
+  assert.match(serviceWorker, /oshima-route-v61/);
 });
 
 test("worker serves collapsed days and official status presentation", async () => {
@@ -94,7 +95,7 @@ test("worker serves collapsed days and official status presentation", async () =
 test("worker UI labels one-way grades and uses the independent AI daily grade", async () => {
   const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
   const css = await (await handleRequest(new Request("https://example.test/app.css"))).text();
-  assert.match(app, /title="片道評価"/);
+  assert.match(app, /forecast_scope\|\|'片道評価'/);
   assert.match(app, /guidance\(d\.daily_forecast\)\.grade/);
   assert.doesNotMatch(app, /Math\.min\(\.\.\.values\)/);
   assert.doesNotMatch(app, /visibleServices=services/);
@@ -106,8 +107,8 @@ test("worker UI labels one-way grades and uses the independent AI daily grade", 
 
 test("the list shows both one-way departures on their own dates", async () => {
   const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
-  assert.match(app, /d\.services\.map\(card\)/);
-  assert.match(app, /d\.services\.map\(card\)/);
+  assert.match(app, /d\.services\.map\(s=>card/);
+  assert.match(app, /d\.services\.map\(s=>card/);
   assert.doesNotMatch(app, /paired_service_id/);
 });
 
@@ -139,7 +140,7 @@ test("four segments show the actual forecast and never select a grade without on
 test("UI timestamps use publication and retain scheduled services for precautionary guidance", async () => {
   const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
   const history = await (await handleRequest(new Request("https://example.test/phase6.js"))).text();
-  assert.match(app, /cardUpdateTimes\(d.last_updated_at,d.next_update,d.ai_update_status\)/);
+  assert.match(app, /dayUpdateBadges\(d.last_updated_at,d.next_update,d.ai_update_status\)/);
   assert.doesNotMatch(app, /cardUpdateTimes\([sg]\./);
   const html = await (await handleRequest(new Request("https://example.test/"))).text();
   assert.doesNotMatch(html, /update-strip|id="last-updated"|id="next-update"/);
@@ -216,18 +217,15 @@ test("worker runs forecast fixture through features and ML inference", async () 
 });
 
 
-test("day heading displays the current assessment ports for both individual and grouped forecasts", async () => {
+test("day heading uses only the shared daily port, ignoring individual and grouped ports", async () => {
   const app = await (await handleRequest(new Request("https://example.test/app.js"))).text();
   const source = app.slice(app.indexOf("function dayPortLabel("), app.indexOf("function render("));
-  const label = new Function(source + ";return dayPortLabel;")();
-  assert.equal(label({services:[{port_prediction:"元町"}]}),"元町港");
-  assert.equal(label({services:[{port_prediction:"岡田"}],group_forecasts:[{assessment:{port_prediction:"元町"}}]}),"元町港");
-  assert.equal(label({services:[],group_forecasts:[{assessment:{port_prediction:"元町"}},{assessment:{port_prediction:"岡田"}}]}),"元町港");
-  assert.equal(label({services:[{port_prediction:"岡田"}],group_forecasts:[{assessment:null}]}),"港未定");
-  assert.equal(label({services:[{port_prediction:"不明"}]}),"港未定");
-  assert.equal(label({services:[{port_prediction:"岡田"},{port_prediction:"元町"},{port_prediction:"元町"}]}),"元町港");
-  assert.equal(label({services:[{port_prediction:"元町",port_confidence_level:2},{port_prediction:"岡田",port_confidence_level:4}]}),"岡田港");
-  assert.equal(label({services:[{port_prediction:"元町",prediction_published_at:"2026-10-07T00:00:00Z"},{port_prediction:"岡田",prediction_published_at:"2026-10-07T03:00:00Z"}]}),"岡田港");
+  const confidence = app.slice(app.indexOf("function confidenceRank("),app.indexOf("function updateTimeLabel("));
+  const label = new Function(confidence + source + ";return dayPortLabel;")();
+  assert.equal(label({services:[{port_prediction:"岡田"}],daily_forecast:{assessment:{port_prediction:"元町"}}}),"元町港");
+  assert.equal(label({services:[],group_forecasts:[{assessment:{port_prediction:"元町"}}],daily_forecast:{assessment:{port_prediction:"岡田"}}}),"岡田港");
+  assert.equal(label({services:[{port_prediction:"元町"},{port_prediction:"元町"}]}),"港未定");
+  assert.equal(label({services:[],daily_forecast:{assessment:null}}),"港未定");
   assert.doesNotMatch(app, /運航環境の見通し/);
 });
 
@@ -238,8 +236,13 @@ test("open forecast screen refreshes at the publication boundary", async () => {
   const FrozenDate = class extends Date {
     static now() { return Date.parse("2026-10-07T06:29:59.900+09:00"); }
   };
-  const schedule = new Function("Date", "setTimeout", "clearTimeout", "load", source + ";return scheduleRefresh;")(
-    FrozenDate, (_fn: unknown, ms: number) => { delay = ms; }, () => {}, () => {});
+  const documentState = { hidden: false };
+  const schedule = new Function("Date", "setTimeout", "clearTimeout", "load", "document", source + ";return scheduleRefresh;")(
+    FrozenDate, (_fn: unknown, ms: number) => { delay = ms; }, () => {}, () => {}, documentState);
   schedule();
   assert.equal(delay, 100);
+  documentState.hidden = true;
+  delay = 0;
+  schedule();
+  assert.equal(delay, 0);
 });

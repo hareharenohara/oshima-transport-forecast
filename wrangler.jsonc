@@ -24,6 +24,9 @@
   "env": {
     "preview": {
       "name": "tokai-kisen-forecast-preview",
+      "vars": {
+        "CONTACT_FORM_URL": "https://docs.google.com/forms/d/e/1FAIpQLSfX9AIoSjB3AVUNpmIt-QGo2Z2wGYYbRWWQ1E1-ComQ2nGtwQ/viewform"
+      },
       "d1_databases": [
         {
           "binding": "DB",

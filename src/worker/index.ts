@@ -1,6 +1,15 @@
+import { PORT_TOGGLE_CSS } from '../ui/port-toggle.js';
+import { SITE_CSS, SITE_FOOTER_HTML, SITE_NOTICE_HTML } from '../ui/site-community.js';
+import { cachedForecastDays } from './forecast-cache.js';
+import { handleSiteRequest, type SiteEnv } from './site-community.js';
+import { DETAIL_LAYOUT_CSS } from '../ui/detail-layout.js';
+import { SERVICE_TIMELINE_CSS } from '../ui/service-timeline.js';
+import { HEADER_ICONS_CSS } from '../ui/header-icons.js';
+import { ICON_PNG_BASE64, FERRY_FAVICON_SVG } from "../ui/icon-assets.js";
 import { nextForecastUpdate } from "./update-policy.js";
 import modelBundleJson from "../../models/cloudflare_portable_model.v2.json" with { type: "json" };
 import { GRADE_GAUGE_CSS } from "../ui/grade-gauge.js";
+import { CONFIDENCE_BADGE_CSS } from "../ui/confidence-badge.js";
 import { ROUTE_POINTS } from "../config/forecast-points.js";
 import { fetchForecasts } from "../forecast/open-meteo.js";
 import { buildFeatures, validateFeatures } from "../ml/build-features.js";
@@ -12,13 +21,15 @@ import type { Direction, ServiceInput, ShipType } from "../types.js";
 import { GROQ_MODELS, GROQ_PROMPT_VERSION } from "../groq/client.js";
 import { publishDueForecasts, runDailyScheduleSync, runScheduled, scheduledJobForCron } from "./scheduled.js";
 import { parsePreferences, parseSubscription, removeSubscription, saveSubscription } from "../notifications/push.js";
-import { APP_CSS, APP_HTML, APP_JS, FAVICON_SVG, MANIFEST, OFFICIAL_STATUS_CSS, OFFICIAL_STATUS_JS, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER, WEATHER_CHARTS_CSS, WEATHER_CHARTS_JS } from "../ui/assets.js";
+import { flightViews, parseFlightPreferences, readFlightPreferences, saveFlightPreferences, saveWatchedService, removeWatchedService } from "../notifications/watched-services.js";
+import { NOTIFICATION_HTML, NOTIFICATION_CSS, NOTIFICATION_JS, PUSH_HANDLERS } from "../ui/notification-settings.js";
+import { APP_CSS, APP_HTML, APP_JS, MANIFEST, OFFICIAL_STATUS_CSS, OFFICIAL_STATUS_JS, PHASE4_CSS, PHASE4_FIX_CSS, PHASE4_JS, PHASE6_CSS, PHASE6_JS, PWA_CSS, PWA_JS, PWA_SETTINGS_CSS, PWA_SETTINGS_JS, SERVICE_WORKER, WEATHER_CHARTS_CSS, WEATHER_CHARTS_JS } from "../ui/assets.js";
 
 const MODEL_BUNDLE: EnsembleModelBundle = modelBundleJson as EnsembleModelBundle;
 const MAX_BODY_BYTES = 16 * 1024;
 const SHIP_TYPES = new Set<ShipType>(["jet", "large"]);
 const DIRECTIONS = new Set<Direction>(["from_oshima", "to_oshima"]);
-export interface WorkerEnv { DB?: D1Database; GROQ_API_KEY?: string; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
+export interface WorkerEnv extends SiteEnv { DB?: D1Database; GROQ_API_KEY?: string; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
 
 class RequestError extends Error {
   constructor(message: string, readonly status = 400, readonly code = "INVALID_REQUEST") {
@@ -99,21 +110,31 @@ function parseService(value: unknown): ServiceInput {
 export async function handleRequest(request: Request, fetchFn: typeof fetch = fetch, env: WorkerEnv = {}): Promise<Response> {
   const requestId = crypto.randomUUID();
   const url = new URL(request.url);
-if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML.replaceAll('/app.css', '/app.css?v=49').replaceAll('/app.js', '/app.js?v=49').replaceAll('/pwa.js', '/pwa.js?v=49').replaceAll('/pwa-settings.js', '/pwa-settings.js?v=49').replaceAll('/phase6.js', '/phase6.js?v=49').replaceAll('/weather-charts.js', '/weather-charts.js?v=49').replaceAll('/official-status.js', '/official-status.js?v=49'), "text/html; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}\n.hero{padding:calc(16px + env(safe-area-inset-top)) 18px 17px;border-radius:0 0 24px 24px}.hero h1{font-size:29px}.hero-actions{gap:8px}.theme-button{width:38px;height:38px}.days{padding-top:18px}.card-updates{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 16px;color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.card-updates>span{white-space:normal}.service .card-updates{margin-top:8px}.hero h1{min-width:0}@media(max-width:420px){.hero h1{font-size:24px}.hero-actions{gap:5px}.theme-button{width:32px;height:32px}.card-updates{flex-direction:column;gap:2px}}.page-notice{margin:24px 0 0}.day-summary{display:flex;flex-direction:column;gap:14px;padding:20px}.day-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.day-heading strong{font-size:25px}.day-heading span{font-size:18px;font-weight:800;color:var(--sea)}.segment-scale{width:100%}.segment-head{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin-bottom:7px}.segment-head b{display:none}.segment-head span{font-size:11px;color:var(--muted)}.segment-head span:last-child{text-align:right}.segment-track{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}.segment-track span{display:grid;place-items:center;min-height:42px;border:2px solid var(--line);background:var(--paper);border-radius:10px;font-size:18px;font-weight:800;color:var(--muted)}.segment-track span.current{border-color:var(--sea);background:var(--sea);color:#fff;box-shadow:0 4px 12px rgba(23,125,134,.25);transform:translateY(-2px)}.segment-scale>small{display:block;margin-top:6px;text-align:center;color:var(--muted);font-size:11px}.service{display:block;padding:13px 8px}.service-main{display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center}.compact-track{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin:9px 0 0 68px}.compact-track span{display:grid;place-items:center;height:27px;border:1px solid var(--line);border-radius:7px;background:var(--paper);font-size:12px;font-weight:800;color:var(--muted)}.compact-track span.current{background:var(--sea);border-color:var(--sea);color:#fff}.ordinal-grid{display:block}.ordinal-grid .ordinal:nth-child(2){display:none}.ordinal{padding:0;background:transparent}.ordinal h3,.ordinal-caption{display:none}.ordinal .scale-ends{font-size:11px;margin-bottom:7px}.ordinal .scale{gap:4px;margin:0}.ordinal .scale-line,.ordinal .marker{display:none}.ordinal .scale-step b{display:grid;place-items:center;min-height:42px;border:2px solid var(--line);background:var(--card);border-radius:10px;font-size:18px;color:var(--muted)}.ordinal .scale-step.current b{border-color:var(--sea);background:var(--sea);color:#fff;font-size:18px}.ml-reference{display:none}@media(max-width:380px){.day-summary{padding:16px}.day-heading strong{font-size:22px}.day-heading span{font-size:16px}.segment-track span{min-height:38px;font-size:16px}.compact-track{margin-left:0}}\n${GRADE_GAUGE_CSS}\n.day-heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;width:100%;align-items:start}.day-heading strong{font-size:20px;white-space:nowrap}.day-heading .day-port{font-size:16px;white-space:nowrap}.day-heading .card-updates{grid-column:auto;display:flex;flex-direction:column;gap:2px;min-width:0;margin:0}.day-heading .card-updates>span{font-size:10px;font-weight:400;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}.day-heading .update-last{order:0}.day-heading .update-next{order:1}.day-heading .card-updates>span:not(.update-last):not(.update-next){order:2}@media(max-width:380px){.day-heading{gap:7px}.day-heading strong{font-size:18px}.day-heading .day-port{font-size:14px}}\n`, "text/css; charset=utf-8");
+  const siteResponse = await handleSiteRequest(request, env, fetchFn);
+  if (siteResponse) return siteResponse;
+if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML.replace('<main>', '<main>'+SITE_NOTICE_HTML).replace(/<footer>[\s\S]*?<\/footer>/, SITE_FOOTER_HTML).replace('</body>', '<script src="/site-public.js" defer></script></body>').replace(/<dialog id="notification-dialog">[\s\S]*?<\/dialog>/,NOTIFICATION_HTML).replaceAll('/app.css', '/app.css?v=85').replaceAll('/app.js', '/app.js?v=85').replaceAll('/pwa.js', '/pwa.js?v=85').replaceAll('/pwa-settings.js', '/pwa-settings.js?v=85').replaceAll('/phase6.js', '/phase6.js?v=85').replaceAll('/weather-charts.js', '/weather-charts.js?v=85').replaceAll('/official-status.js', '/official-status.js?v=85'), "text/html; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/app.css") return asset(`${NOTIFICATION_CSS}\n${APP_CSS}\n${PHASE4_CSS}\n${PHASE4_FIX_CSS}\n${PWA_CSS}\n${PWA_SETTINGS_CSS}\n${PHASE6_CSS}\n${WEATHER_CHARTS_CSS}\n${OFFICIAL_STATUS_CSS}\n.hero{padding:calc(16px + env(safe-area-inset-top)) 18px 17px;border-radius:0 0 24px 24px}.hero h1{font-size:29px}.hero-actions{gap:8px}.theme-button{width:38px;height:38px}.days{padding-top:18px}.card-updates{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px 16px;color:var(--muted);font-size:11px;font-weight:400;line-height:1.6}.card-updates>span{white-space:normal}.service .card-updates{margin-top:8px}.hero h1{min-width:0}@media(max-width:420px){.hero h1{font-size:24px}.hero-actions{gap:5px}.theme-button{width:32px;height:32px}.card-updates{flex-direction:column;gap:2px}}.page-notice{margin:24px 0 0}.day-summary{display:flex;flex-direction:column;gap:14px;padding:20px}.day-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.day-heading strong{font-size:25px}.day-heading span{font-size:18px;font-weight:800;color:var(--sea)}.segment-scale{width:100%}.segment-head{display:grid;grid-template-columns:1fr 1fr;align-items:center;margin-bottom:7px}.segment-head b{display:none}.segment-head span{font-size:11px;color:var(--muted)}.segment-head span:last-child{text-align:right}.segment-track{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}.segment-track span{display:grid;place-items:center;min-height:42px;border:2px solid var(--line);background:var(--paper);border-radius:10px;font-size:18px;font-weight:800;color:var(--muted)}.segment-track span.current{border-color:var(--sea);background:var(--sea);color:#fff;box-shadow:0 4px 12px rgba(23,125,134,.25);transform:translateY(-2px)}.segment-scale>small{display:block;margin-top:6px;text-align:center;color:var(--muted);font-size:11px}.service{display:block;padding:13px 8px}.service-main{display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center}.compact-track{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin:9px 0 0 68px}.compact-track span{display:grid;place-items:center;height:27px;border:1px solid var(--line);border-radius:7px;background:var(--paper);font-size:12px;font-weight:800;color:var(--muted)}.compact-track span.current{background:var(--sea);border-color:var(--sea);color:#fff}.ordinal-grid{display:block}.ordinal-grid .ordinal:nth-child(2){display:none}.ordinal{padding:0;background:transparent}.ordinal h3,.ordinal-caption{display:none}.ordinal .scale-ends{font-size:11px;margin-bottom:7px}.ordinal .scale{gap:4px;margin:0}.ordinal .scale-line,.ordinal .marker{display:none}.ordinal .scale-step b{display:grid;place-items:center;min-height:42px;border:2px solid var(--line);background:var(--card);border-radius:10px;font-size:18px;color:var(--muted)}.ordinal .scale-step.current b{border-color:var(--sea);background:var(--sea);color:#fff;font-size:18px}.ml-reference{display:none}@media(max-width:380px){.day-summary{padding:16px}.day-heading strong{font-size:22px}.day-heading span{font-size:16px}.segment-track span{min-height:38px;font-size:16px}.compact-track{margin-left:0}}\n${GRADE_GAUGE_CSS}\n${CONFIDENCE_BADGE_CSS}\n.day-heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;width:100%;align-items:start}.day-heading strong{font-size:20px;white-space:nowrap}.day-heading .day-port{font-size:16px;white-space:nowrap}.day-heading .card-updates{grid-column:auto;display:flex;flex-direction:column;gap:2px;min-width:0;margin:0}.day-heading .card-updates>span{font-size:10px;font-weight:400;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}.day-heading .update-last{order:0}.day-heading .update-next{order:1}.day-heading .card-updates>span:not(.update-last):not(.update-next){order:2}@media(max-width:380px){.day-heading{gap:7px}.day-heading strong{font-size:18px}.day-heading .day-port{font-size:14px}}\n${HEADER_ICONS_CSS}\n${SERVICE_TIMELINE_CSS}\n${DETAIL_LAYOUT_CSS}\n${SITE_CSS}\n${PORT_TOGGLE_CSS}`, "text/css; charset=utf-8");
   if (request.method === "GET" && url.pathname === "/app.js") return asset(`${APP_JS}\n${PHASE4_JS.split("function historyProbability")[0]}`
     .replace("if(row.operation_probability!=null)return Number(row.operation_probability);", "")
-    .replace("scale('AI就航評価',['D','C','B','A'],grade,'欠航','就航')", "scale('',rankGrade,grade,'欠航寄り','就航寄り')")
-    .replace("+factors(latest?.confidence_reasons,'確信度の根拠','')", ""), "text/javascript; charset=utf-8");
-  if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS.replace("navigator.serviceWorker.register('/sw.js')", "navigator.serviceWorker.register('/sw.js').then(registration=>registration.update())"), "text/javascript; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(PWA_SETTINGS_JS, "text/javascript; charset=utf-8", "no-cache");
+    .replace("scale('AI就航評価',['D','C','B','A'],grade,'欠航','就航')", "scale('',rankGrade,grade,'欠航寄り','就航寄り')"), "text/javascript; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/pwa.js") return asset(PWA_JS.slice(0,PWA_JS.indexOf('const notify=')).replace("navigator.serviceWorker.register('/sw.js')", "navigator.serviceWorker.register('/sw.js').then(registration=>registration.update())"), "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && url.pathname === "/pwa-settings.js") return asset(NOTIFICATION_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/phase6.js") return asset(PHASE6_JS
     .replace("panel.textContent='就航見込みの前回差は算出できません · 港予測 変更なし'", "panel.textContent=panel.textContent.replace('nullポイント','就航見込みの前回差は算出できません')"), "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/weather-charts.js") return asset(WEATHER_CHARTS_JS, "text/javascript; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/official-status.js") return asset(OFFICIAL_STATUS_JS, "text/javascript; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("oshima-route-v1", "oshima-route-v25").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js','/official-status.js'").replace("event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)))", "event.respondWith(fetch(event.request).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone()));return response}).catch(()=>caches.match(event.request)))"), "text/javascript; charset=utf-8", "no-cache");
-  if (request.method === "GET" && url.pathname === "/favicon.svg") return asset(FAVICON_SVG, "image/svg+xml; charset=utf-8", "public, max-age=86400");
-  if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8");
+  if (request.method === "GET" && url.pathname === "/sw.js") return asset(SERVICE_WORKER.replace("if(event.request.method!=='GET'||url.origin!==location.origin)return;", "if(event.request.method!=='GET'||url.origin!==location.origin)return;if(url.pathname==='/admin'||url.pathname.startsWith('/api/admin/')||url.pathname==='/api/contact'||url.pathname==='/api/contact/config'||url.pathname==='/api/announcements'||url.pathname==='/announcements'||url.pathname==='/contact')return;").replace(/self.addEventListener\('push',[\s\S]*/,PUSH_HANDLERS).replace("oshima-route-v1", "oshima-route-v61-inline-update-labels").replace("'/pwa.js'", "'/pwa.js','/pwa-settings.js','/phase6.js','/weather-charts.js','/official-status.js'").replace("event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request)))", "event.respondWith(fetch(event.request).then(response=>{if(response.ok)caches.open(CACHE).then(cache=>cache.put(event.request,response.clone()));return response}).catch(()=>caches.match(event.request)))"), "text/javascript; charset=utf-8", "no-cache");
+  if (request.method === "GET" && Object.hasOwn(ICON_PNG_BASE64, url.pathname)) {
+    const encoded = ICON_PNG_BASE64[url.pathname]!;
+    const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+    return new Response(bytes, { headers: { "Content-Type": "image/png", "Cache-Control": (url.pathname.includes("transparent-v1") || url.pathname.includes("cropped-v1")) ? "public, max-age=31536000, immutable" : "no-cache", "X-Content-Type-Options": "nosniff" } });
+  }
+  if (request.method === "GET" && url.pathname === "/favicon.svg") {
+    const response = asset(FERRY_FAVICON_SVG, "image/svg+xml; charset=utf-8", "no-cache");
+    response.headers.set("Content-Security-Policy", "default-src 'none'; img-src data:; frame-ancestors 'none'");
+    return response;
+  }
+  if (request.method === "GET" && url.pathname === "/manifest.webmanifest") return asset(MANIFEST, "application/manifest+json; charset=utf-8", "no-cache");
   if (request.method === "GET" && url.pathname === "/health") {
     return json({ status: "ok", modelVersion: MODEL_BUNDLE.schema_version, featuresVersion: "v1-127+v2-hybrid-1",
       aiModel: GROQ_MODELS.final, aiSummaryModel: null, aiPromptVersion: GROQ_PROMPT_VERSION, groupedForecastHorizons: [2,3,4] });
@@ -124,24 +145,44 @@ if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML.repl
     if (request.method === "POST") {
       try {
         const body = await readJsonWithLimit(request) as Record<string, unknown>;
-        const id = await saveSubscription(env.DB, parseSubscription(body.subscription), parsePreferences(body.preferences));
+        const flightPreferences = body.flightPreferences === undefined ? null : parseFlightPreferences(body.flightPreferences);
+        const selectedServiceId=body.selectedServiceId;
+        if(selectedServiceId!==undefined && (typeof selectedServiceId!=='string'||!selectedServiceId||!flightPreferences||flightPreferences.serviceIds.length!==1||flightPreferences.serviceIds[0]!==selectedServiceId)) throw Error('通知する便を確認してください。');
+        const views = flightPreferences ? await flightViews(env.DB) : null;
+        if (flightPreferences) for (const serviceId of flightPreferences.serviceIds) if (!views!.has(serviceId)) throw Error('出発済み、または運航予定にない便が含まれています。');
+        const id = await saveSubscription(env.DB, parseSubscription(body.subscription), parsePreferences(flightPreferences
+          ? {notifyRiskTransition:false,notifyPortChange:false,notifyOfficialUpdate:false} : body.preferences));
+        if (flightPreferences) {
+          if(typeof selectedServiceId==='string') await saveWatchedService(env.DB,id,selectedServiceId,flightPreferences,views!);
+          else await saveFlightPreferences(env.DB,id,flightPreferences,views!);
+        }
         return json({ subscriptionId: id }, 201);
       } catch (error) { return json({ error: { code: "INVALID_REQUEST", message: error instanceof Error ? error.message : "Invalid subscription" }, requestId }, 400); }
+    }
+    if (request.method === "GET") {
+      const id=url.searchParams.get('id');
+      if (!id) return json({error:{code:'INVALID_REQUEST',message:'id is required'}},400);
+      const settings=await readFlightPreferences(env.DB,id);
+      return settings ? json(settings) : json({error:{code:'NOT_FOUND',message:'通知設定が見つかりません。'}},404);
     }
     if (request.method === "DELETE") {
       const id = url.searchParams.get("id");
       if (!id) return json({ error: { code: "INVALID_REQUEST", message: "id is required" }, requestId }, 400);
-      await removeSubscription(env.DB, id);
+      const serviceId=url.searchParams.get('serviceId');
+      if(serviceId) await removeWatchedService(env.DB,id,serviceId);
+      else await removeSubscription(env.DB, id);
       return new Response(null, { status: 204 });
     }
-    return json({ error: { code: "METHOD_NOT_ALLOWED", message: "Use POST or DELETE" }, requestId }, 405);
+    return json({ error: { code: "METHOD_NOT_ALLOWED", message: "Use GET, POST or DELETE" }, requestId }, 405);
   }
   if (request.method === "GET" && url.pathname === "/api/days") {
     if (!env.DB) return json({ error: { code: "STORAGE_UNAVAILABLE", message: "Prediction storage is not configured" }, requestId }, 503);
     const from = url.searchParams.get("from") ?? new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) return json({ error: { code: "INVALID_REQUEST", message: "from must be YYYY-MM-DD" }, requestId }, 400);
+    const db = env.DB;
+    return cachedForecastDays(request, from, requestId, async () => {
     try {
-      const [days, groups, dailyForecasts, publishedRunSlot, publishedAt] = await Promise.all([readDays(env.DB, from), readGroupForecasts(env.DB,from), readDailyForecasts(env.DB,from), readLatestPublishedRunSlot(env.DB), readLatestPublicationTime(env.DB)]);
+      const [days, groups, dailyForecasts, publishedRunSlot, publishedAt] = await Promise.all([readDays(db, from), readGroupForecasts(db,from), readDailyForecasts(db,from), readLatestPublishedRunSlot(db), readLatestPublicationTime(db)]);
       const today = new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Tokyo"}).format(new Date());
       const tomorrow = new Date(Date.parse(`${today}T00:00:00Z`)+86_400_000).toISOString().slice(0,10);
       const now = new Date();
@@ -165,6 +206,7 @@ if (request.method === "GET" && url.pathname === "/") return asset(APP_HTML.repl
       console.error(JSON.stringify({ event: "storage_read_failed", requestId, route: "days", message: error instanceof Error ? error.message : String(error) }));
       return json({ error: { code: "STORAGE_UNAVAILABLE", message: "保存済み予測を取得できません。" }, requestId }, 503);
     }
+    }, typeof caches === 'undefined' ? undefined : (caches as CacheStorage & { default?: Cache }).default);
   }
   const serviceMatch = url.pathname.match(/^\/api\/services\/([^/]+)(\/history|\/series)?$/);
   if (request.method === "GET" && serviceMatch) {

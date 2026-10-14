@@ -6,7 +6,7 @@ import { validateDailyAssessment } from "../src/pipeline/daily-assessment.js";
 import { assessBatchWithProviderFallback } from "../src/ai/provider.js";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
-import { readService, readHistory, readPreviousPredictionContexts } from "../src/storage/d1.js";
+import { readDays, readService, readHistory, readPreviousPredictionContexts, readGroupForecasts } from "../src/storage/d1.js";
 
 test("old neutral B is never relabeled cancellation while new B stays operation favored", () => {
   assert.equal(actionGuidance("S", "assessment-v21-reliable-daily").grade, "A");
@@ -51,7 +51,9 @@ test("stored legacy and new grades coexist without changing history or creating 
       VALUES('test','2026-10-09','1','jet','東京','大島','東京','2026-10-09T08:00:00+09:00','2026-10-09T10:00:00+09:00',120,'old','old');
       INSERT INTO forecast_runs(id,run_slot,run_at,status,created_at) VALUES('old','2000-01-01','old','completed','old'),('new','2000-01-02','new','completed','new');
       INSERT INTO ai_predictions(id,forecast_run_id,service_id,evaluation_rating,ai_status,prompt_version,created_at)
-      VALUES('old-ai','old','test','A','generated','assessment-v21-reliable-daily','2000-01-01'),('new-ai','new','test','B','generated','assessment-v22-abcd','2000-01-02');`);
+      VALUES('old-ai','old','test','A','generated','assessment-v21-reliable-daily','2000-01-01'),('new-ai','new','test','B','generated','assessment-v30-daily-port','2000-01-02');`);
+    const dayService = (await readDays(db,"2026-10-09"))[0]!.services[0] as unknown as { action_guidance: { grade: string | null } };
+    assert.equal(dayService.action_guidance.grade,"B");
     const service=await readService(db,"test") as any;
     assert.equal(service.action_guidance.grade,"B");
     assert.equal(service.change.evaluation_changed,false);
@@ -62,4 +64,30 @@ test("stored legacy and new grades coexist without changing history or creating 
     sqlite.exec("UPDATE ai_predictions SET evaluation_rating='B' WHERE id='old-ai'");
     assert.equal((await readHistory(db,"test") as any[])[1].action_guidance.grade,null);
   } finally { sqlite.close(); }
+});
+
+
+test("saved scale overrides prompt names and transitional service versions keep ABCD meaning", () => {
+  for (const grade of ["A", "B", "C", "D"]) {
+    assert.equal(actionGuidance(grade, "renamed-prompt", "abcd-v1").grade, grade);
+    for (const version of [25,26,27,28,29,30,31]) assert.equal(actionGuidance(grade, "assessment-v"+version+"-renamed").grade, grade);
+  }
+  assert.equal(actionGuidance("B", "assessment-v29-abcd", "legacy-five-level").grade, null);
+  assert.equal(actionGuidance("B", "unknown").grade, null);
+});
+
+test("13:00 saved group assessments display without rewriting their prompt versions or grades", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  try {
+    for (const name of readdirSync("migrations").filter(name=>name.endsWith(".sql")).sort()) sqlite.exec(readFileSync(`migrations/${name}`,"utf8"));
+    const db={prepare(sql:string){let args:unknown[]=[];return{bind(...values:unknown[]){args=values;return this;},async all(){return{results:sqlite.prepare(sql).all(...args as [])};}};}} as unknown as D1Database;
+    sqlite.exec("INSERT INTO forecast_runs(id,run_slot,run_at,status,created_at) VALUES('run','2000-01-01','old','completed','old')");
+    const insert=sqlite.prepare("INSERT INTO group_forecasts(forecast_run_id,group_id,service_date,horizon_days,label,ship_type,member_ids_json,assessment_json,ai_status,model,prompt_version,created_at) VALUES('run',?,'2026-10-11',2,?,'jet','[]',?,'generated','model',?,'old')");
+    for(const [id,version] of [["morning","assessment-v26-advisory-length"],["tokyo","future-renamed"],["atami","assessment-v26-advisory-length"],["large","assessment-v26-advisory-length"]]) insert.run(id!,id!,JSON.stringify({grade_scale:"abcd-v1",evaluation_grade:"B"}),version!);
+    const rows=await readGroupForecasts(db,"2026-10-11");
+    assert.equal(rows.length,4);
+    assert.deepEqual(rows.map(row=>row.action_guidance.grade),["B","B","B","B"]);
+    assert.ok(rows.every(row=>row.ai_status==="generated"));
+    assert.equal((sqlite.prepare("SELECT prompt_version FROM group_forecasts WHERE group_id='morning'").get() as any).prompt_version,"assessment-v26-advisory-length");
+  } finally {sqlite.close();}
 });

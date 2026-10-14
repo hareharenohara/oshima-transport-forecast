@@ -21,7 +21,7 @@ interface Comparison {
 export interface GroupJudgmentMaterial {
   version:"group-weather-v1";date:string;shipType:string;count:number;
   regions:Region[];official:Comparison[];experience:Comparison[];
-  policy:{flags:number;confidenceCeiling:number;largeMorningPrior:"none"|"some"|"all"};
+  policy:{flags:number;largeMorningPrior:"none"|"some"|"all"};
   ml:Array<[string,number|null,number|null,string[]]>;
 }
 
@@ -121,5 +121,5 @@ export function buildGroupJudgmentMaterial(group:ForecastGroup, members:Array<{s
  });
  return{version:"group-weather-v1",date:group.date,shipType:group.shipType,count:members.length,regions:groupedRegions,
   official:summarizeComparisons(false),experience:summarizeComparisons(true),ml,
-  policy:{flags,confidenceCeiling:Math.min(...bases.map(b=>b.confidenceCeiling),3),largeMorningPrior:bases.every(b=>b.portSignals.largeMorningPrior)?"all":bases.some(b=>b.portSignals.largeMorningPrior)?"some":"none"}};
+  policy:{flags,largeMorningPrior:bases.every(b=>b.portSignals.largeMorningPrior)?"all":bases.some(b=>b.portSignals.largeMorningPrior)?"some":"none"}};
 }

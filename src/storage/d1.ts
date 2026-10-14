@@ -1,4 +1,5 @@
 import { actionGuidance } from "../pipeline/action-guidance.js";
+import { confidenceLevel } from "../pipeline/confidence-scale.js";
 import type { DailyAssessment } from "../pipeline/daily-assessment.js";
 import type { ServiceInput } from "../types.js";
 import type { FinalAssessment, ForecastSummary } from "../gemini/client.js";
@@ -104,10 +105,8 @@ export async function readRunPushAssessments(db: D1Database, runId: string): Pro
   service: ServiceInput; result: { ai: { port_prediction: string | null } | null; ml: { predictions: Array<{ cancellationProbability: number }> } }
 }>> {
   const rows = await db.prepare(`SELECT s.id, s.service_number, s.ship_type, s.destination, s.counterpart_terminal,
-    s.scheduled_departure, s.scheduled_arrival, COALESCE(a.port_prediction,
-      (SELECT json_extract(g.assessment_json,'$.port_prediction') FROM group_forecasts g
-        WHERE g.forecast_run_id=a.forecast_run_id AND g.ai_status='generated'
-          AND EXISTS(SELECT 1 FROM json_each(g.member_ids_json) WHERE value=a.service_id) LIMIT 1)) AS port_prediction,
+    s.scheduled_departure, s.scheduled_arrival, (SELECT json_extract(d.assessment_json,'$.port_prediction') FROM daily_forecasts d
+      WHERE d.forecast_run_id=a.forecast_run_id AND d.service_date=s.service_date AND d.ai_status='generated') AS port_prediction,
     (SELECT json_group_array(m.cancellation_probability) FROM ml_predictions m
       WHERE m.forecast_run_id=a.forecast_run_id AND m.service_id=s.id) AS risks_json
     FROM ai_predictions a JOIN services s ON s.id=a.service_id
@@ -142,8 +141,8 @@ export async function readPreviousPredictionContexts(db: D1Database, serviceIds:
         }>();
   return new Map(rows.results.map((row) => [row.service_id, {
     evaluationGrade: actionGuidance(row.evaluation_rating, row.prompt_version).grade,
-    confidenceLevel: row.confidence_level,
-    portPrediction: row.port_prediction,
+    confidenceLevel: confidenceLevel(row.confidence_level,row),
+    portPrediction: null,
     createdAt: row.created_at
   }]));
 }
@@ -169,21 +168,25 @@ export async function saveGroupAssessment(db: D1Database, runId: string, group: 
 
 export async function readGroupForecasts(db: D1Database, fromDate: string, days = 5) {
   const endDate = dateRangeEnd(fromDate,days);
-  const rows = await db.prepare(`SELECT g.*, ${publicationTimeSql("r")} AS published_at, latest.ai_status AS latest_ai_status
-    FROM group_forecasts latest JOIN forecast_runs lr ON lr.id=latest.forecast_run_id
+  // Compute the latest visible run once per date, rather than once per history row.
+  const rows = await db.prepare(`WITH latest_dates AS MATERIALIZED (
+    SELECT gf.service_date, MAX(r.run_slot) AS run_slot
+    FROM group_forecasts gf JOIN forecast_runs r ON r.id=gf.forecast_run_id
+    WHERE gf.service_date>=? AND gf.service_date<? AND ${VISIBLE_RUN_SQL}
+    GROUP BY gf.service_date
+  ), latest AS MATERIALIZED (
+    SELECT gf.* FROM latest_dates ld JOIN forecast_runs lr ON lr.run_slot=ld.run_slot
+    JOIN group_forecasts gf ON gf.forecast_run_id=lr.id AND gf.service_date=ld.service_date
+  ) SELECT g.*, ${publicationTimeSql("r")} AS published_at, latest.ai_status AS latest_ai_status
+    FROM latest
     JOIN group_forecasts g ON g.group_id=latest.group_id AND g.forecast_run_id=(
       SELECT gg.forecast_run_id FROM group_forecasts gg JOIN forecast_runs gr ON gr.id=gg.forecast_run_id
       WHERE gg.group_id=latest.group_id AND gg.member_ids_json=latest.member_ids_json AND gr.status IN ('completed','partial')
         AND (gr.publish_at IS NULL OR gr.publish_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now'))
       ORDER BY (gg.ai_status='generated') DESC,gr.run_slot DESC LIMIT 1)
     JOIN forecast_runs r ON r.id=g.forecast_run_id
-    WHERE latest.service_date>=? AND latest.service_date<? AND lr.status IN ('completed','partial')
-      AND (lr.publish_at IS NULL OR lr.publish_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-      AND lr.run_slot=(SELECT MAX(gr.run_slot) FROM group_forecasts gg JOIN forecast_runs gr ON gr.id=gg.forecast_run_id
-        WHERE gg.service_date=latest.service_date AND gr.status IN ('completed','partial')
-          AND (gr.publish_at IS NULL OR gr.publish_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now')))
     ORDER BY g.service_date,g.label`).bind(fromDate,endDate).all<Record<string, unknown>>();
-  return rows.results.map(row => ({ action_guidance: actionGuidance(row.assessment_json ? JSON.parse(String(row.assessment_json)).evaluation_grade : null, row.prompt_version), group_id: String(row.group_id), date: String(row.service_date), label: String(row.label),
+  return rows.results.map(row => ({ action_guidance: actionGuidance(row.assessment_json ? JSON.parse(String(row.assessment_json)).evaluation_grade : null, row.prompt_version, row.assessment_json ? JSON.parse(String(row.assessment_json)).grade_scale : null), group_id: String(row.group_id), date: String(row.service_date), label: String(row.label),
     horizon_days: Number(row.horizon_days), ship_type: String(row.ship_type), member_ids: JSON.parse(String(row.member_ids_json)) as string[],
     ai_status: String(row.ai_status), latest_ai_status:String(row.latest_ai_status), stale:row.latest_ai_status!=='generated'&&row.ai_status==='generated', error_message: row.error_message, assessment: row.assessment_json ? JSON.parse(String(row.assessment_json)) as FinalAssessment : null,
     published_at: row.published_at }));
@@ -398,8 +401,8 @@ export async function readService(db: D1Database, serviceId: string): Promise<un
     previous_prediction: previous ?? null,
     change: current && previous ? {
       evaluation_changed: actionGuidance(current.evaluation_grade, current.prompt_version).grade !== actionGuidance(previous.evaluation_grade, previous.prompt_version).grade,
-      confidence_level_change: current.confidence_level !== null && previous.confidence_level !== null ? current.confidence_level - previous.confidence_level : null,
-      port_changed: current.port_prediction !== previous.port_prediction
+      confidence_level_change: confidenceLevel(current.confidence_level,current) !== null && confidenceLevel(previous.confidence_level,previous) !== null ? confidenceLevel(current.confidence_level,current)! - confidenceLevel(previous.confidence_level,previous)! : null,
+      port_changed: false
     } : null
   };
 }
@@ -447,16 +450,14 @@ export async function saveDailyAssessment(db: D1Database, runId: string, daily: 
     .bind(runId,daily.date,daily.assessment ? JSON.stringify(daily.assessment) : null,daily.assessment ? "generated" : "unavailable",daily.error ?? null,createdAt).run();
 }
 export async function readDailyForecasts(db: D1Database, fromDate: string, days=5) {
-  const rows = await db.prepare(`SELECT d.*, ${publicationTimeSql("r")} AS published_at,
-    (SELECT dd.ai_status FROM daily_forecasts dd JOIN forecast_runs dr ON dr.id=dd.forecast_run_id
-      WHERE dd.service_date=d.service_date AND dr.status IN ('completed','partial')
-      AND (dr.publish_at IS NULL OR dr.publish_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now')) ORDER BY dr.run_slot DESC LIMIT 1) AS latest_ai_status
+  const rows = await db.prepare(`WITH ranked AS MATERIALIZED (
+    SELECT d.*, ${publicationTimeSql("r")} AS published_at,
+      FIRST_VALUE(d.ai_status) OVER (PARTITION BY d.service_date ORDER BY r.run_slot DESC) AS latest_ai_status,
+      ROW_NUMBER() OVER (PARTITION BY d.service_date ORDER BY (d.ai_status='generated') DESC,r.run_slot DESC) AS preferred_rank
     FROM daily_forecasts d JOIN forecast_runs r ON r.id=d.forecast_run_id
     WHERE d.service_date>=? AND d.service_date<? AND ${VISIBLE_RUN_SQL}
-    AND d.forecast_run_id=(SELECT dd.forecast_run_id FROM daily_forecasts dd JOIN forecast_runs dr ON dr.id=dd.forecast_run_id
-      WHERE dd.service_date=d.service_date AND dr.status IN ('completed','partial')
-      AND (dr.publish_at IS NULL OR dr.publish_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now')) ORDER BY (dd.ai_status='generated') DESC,dr.run_slot DESC LIMIT 1)
-    ORDER BY d.service_date`).bind(fromDate,dateRangeEnd(fromDate,days)).all<Record<string,unknown>>();
+  ) SELECT * FROM ranked WHERE preferred_rank=1 ORDER BY service_date`)
+    .bind(fromDate,dateRangeEnd(fromDate,days)).all<Record<string,unknown>>();
   return rows.results.map(row=>({action_guidance: actionGuidance(row.assessment_json ? JSON.parse(String(row.assessment_json)).evaluation_grade : null, row.assessment_json ? JSON.parse(String(row.assessment_json)).grade_scale : null), date:String(row.service_date),assessment:row.assessment_json ? JSON.parse(String(row.assessment_json)) as DailyAssessment : null,
     ai_status:String(row.ai_status),latest_ai_status:String(row.latest_ai_status),stale:row.latest_ai_status!=='generated'&&row.ai_status==='generated',published_at:row.published_at}));
 }

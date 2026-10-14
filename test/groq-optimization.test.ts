@@ -30,17 +30,24 @@ test("comparison sharing restores each member's own values and keeps distinct-wi
  assert.deepEqual(items,before);
 });
 
-test("compact API output rebuilds display fields without requesting computed confidence or duplicate summary",async()=>{
+test("compact API output rebuilds display fields while requesting AI confidence and omitting duplicate summary",async()=>{
  const result=await assessGroqBatch([{serviceId:"a",input:{officialCriteria:[]},ml:{}}],"offline",async(_url,init)=>{
   const body=JSON.parse(String(init?.body));
+  assert.match(body.messages[1].content,/入港基準を航路途中の基準で置き換えない/);
+  assert.match(body.messages[1].content,/モデル差・拮抗・欠損だけでBにもCにも固定せず/);
+  assert.match(body.messages[1].content,/同じ地点・運航時間帯に関する入力上の具体的根拠/);
   const properties=body.response_format.json_schema.schema.properties.services.items.properties;
-  for(const key of ["confidence_level","confidence_reasons","official_criteria_status","summary"])assert.equal(key in properties,false);
-  for(const key of ["positive_factors","negative_factors","port_reasons"])assert.equal(properties[key].maxItems,undefined);
+  for(const key of ["official_criteria_status","summary"])assert.equal(key in properties,false);
+  for(const key of ["confidence_level","confidence_reasons"])assert.equal(key in properties,true);
+  assert.equal(properties.confidence_level.maximum,3);assert.equal(properties.port_confidence_level,undefined);
+  for(const key of ["positive_factors","negative_factors"])assert.equal(properties[key].maxItems,undefined);
   assert.match(body.messages[1].content,/そのランクを選んだ決め手/);
   assert.doesNotMatch(body.messages[1].content,/100文字|配列2件/);
-  return Response.json({choices:[{message:{content:JSON.stringify({services:[{service_id:"a",evaluation_grade:"A",assessment:"風と波は基準未満です。",positive_factors:[],negative_factors:[],port_prediction:"元町",port_confidence_level:1,port_reasons:[]}]})}}]});
+  return Response.json({choices:[{message:{content:JSON.stringify({services:[{service_id:"a",evaluation_grade:"A",confidence_level:3,confidence_reasons:["AI判断"],assessment:"風と波は基準未満です。",positive_factors:[],negative_factors:[],port_prediction:"元町",port_confidence_level:1,port_reasons:[]}]})}}]});
  });
  assert.equal(result[0]!.aiStatus,"generated");
  assert.equal(result[0]!.ai!.summary,result[0]!.ai!.assessment);
  assert.deepEqual(result[0]!.ai!.official_criteria_status,[]);
+ assert.equal(result[0]!.ai!.confidence_level,3);
+ assert.deepEqual(result[0]!.ai!.confidence_reasons,["AI判断"]);
 });

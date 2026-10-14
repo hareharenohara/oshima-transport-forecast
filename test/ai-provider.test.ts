@@ -7,7 +7,7 @@ import { pacedGroqFetch } from "../src/groq/rate-limit.js";
 function fakeClock() { let time = 0; const waits: number[] = []; return { waits, now: () => time, sleep: async (ms: number) => { waits.push(ms); time += ms; } }; }
 
 const summary = { risk_level: "low", model_agreement: "high", key_signals: ["低リスク"], rough_conditions: [], peak_conditions: [], trends: [], previous_changes: [], missing_data: [], numerical_summary: "低リスク" };
-const assessment = { evaluation_grade: "A", confidence_level: 4, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "岡田", port_confidence_level: 1, port_reasons: ["判断材料不足"], summary: "運航可能性が高い" };
+const assessment = { evaluation_grade: "A", confidence_level: 3, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "岡田", port_confidence_level: 1, port_reasons: ["判断材料不足"], summary: "運航可能性が高い" };
 
 function groq(value: unknown, promptTokens: number, completionTokens: number) {
   return Response.json({ choices: [{ message: { content: JSON.stringify(value) } }], usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: promptTokens + completionTokens } });

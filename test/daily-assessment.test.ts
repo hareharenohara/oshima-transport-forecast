@@ -7,25 +7,34 @@ import { assessBatchWithProviderFallback } from "../src/ai/provider.js";
 import { readDailyForecasts, saveDailyAssessment } from "../src/storage/d1.js";
 import { handleRequest } from "../src/worker/index.js";
 const date="2026-10-08";
-const overview={date,evaluation_grade:"A" as const,assessment:"波の懸念は午後の東京航路に限られるため、全体は就航寄りと判断します。"};
-const leg={evaluation_grade:"D",assessment:"波高から欠航寄りと判断します。",positive_factors:[],negative_factors:[],port_prediction:"岡田",port_confidence_level:1,port_reasons:["波の予報を考慮"]};
+const overview={date,port_prediction:"元町" as const,port_confidence_level:2 as const,port_reasons:["大島側の風が弱く、降水も少ないため元町と判断。"],evaluation_grade:"A" as const,assessment:"波の懸念は午後の東京航路に限られるため、全体は就航寄りと判断します。"};
+const leg={evaluation_grade:"D",confidence_level:3,confidence_reasons:["AI判断"],assessment:"波高から欠航寄りと判断します。",positive_factors:[],negative_factors:[],port_prediction:"岡田",port_confidence_level:1,port_reasons:["波の予報を考慮"]};
 function clock(){let time=0;return{now:()=>time,sleep:async(ms:number)=>{time+=ms;}};}
 
 test("one request per date returns independent daily grade with identical weather transport",async()=>{
  const requests:any[]=[];
  const results=await assessBatchWithProviderFallback(["a","b","c"].map((serviceId,i)=>({serviceId,input:{},ml:{},dailyDate:i<2?date:"2026-10-09"})),{groqApiKey:"offline"},async(_url,init)=>{
   const body=JSON.parse(String(init?.body));requests.push(body);
+  assert.match(body.messages[1].content,/Never substitute a route criterion for an entry criterion/);
+  assert.match(body.messages[1].content,/Compare operation and cancellation evidence symmetrically/);
+  assert.match(body.messages[1].content,/日全体がBでも基準超過が残る便・航路・時間帯は明記/);
   const ids=JSON.parse(body.messages[1].content.split("判断材料:\n")[1]).services.map((row:any)=>row.serviceId);
   const day=body.response_format.json_schema.schema.properties.daily.properties.date.enum[0];
   return Response.json({choices:[{finish_reason:"stop",message:{content:JSON.stringify({services:ids.map((service_id:string)=>({service_id,...leg})),daily:{...overview,date:day}})}}]});
  },clock());
  assert.equal(requests.length,2);
+ const schema=requests[0].response_format.json_schema.schema;
+ assert.ok(schema.properties.daily.required.includes('port_prediction'));
+ assert.deepEqual(Object.keys(schema.properties.services.items.properties),['id','g','a','p','n','q','h']);
+ assert.equal(results[0]!.ai!.port_prediction,undefined);
+ assert.equal(results[0]!.daily!.port_prediction,'元町');
+ assert.equal(results[1]!.daily!.port_prediction,'元町');
  assert.equal(results[0]!.ai!.evaluation_grade,"D");assert.equal(results[0]!.daily!.evaluation_grade,"A");
  assert.equal(results[2]!.daily!.date,"2026-10-09");
 });
 
-test("missing, wrong-date or placeholder daily output preserves valid service judgments",async()=>{
- for(const daily of [undefined,{...overview,date:"2026-10-09"},{...overview,assessment:"評価保留"}]){
+test("missing or wrong-date daily output preserves valid service judgments",async()=>{
+ for(const daily of [undefined,{...overview,date:"2026-10-09"}]){
   const results=await assessBatchWithProviderFallback([{serviceId:"a",input:{},ml:{},dailyDate:date}],{groqApiKey:"offline"},async()=>Response.json({choices:[{message:{content:JSON.stringify({services:[{service_id:"a",...leg}],daily})}}]}),clock());
   assert.equal(results[0]!.aiStatus,"generated");assert.equal(results[0]!.daily,null);assert.ok(results[0]!.dailyError);
  }
@@ -35,10 +44,11 @@ test("a split recovers daily outlook from all targets, never a partial request",
  let recoveryTargets:string[]=[];
  const results=await assessBatchWithProviderFallback(["a","b"].map(serviceId=>({serviceId,input:{},ml:{},dailyDate:date})),{groqApiKey:"offline"},async(_url,init)=>{
   const body=JSON.parse(String(init?.body));const ids=JSON.parse(body.messages[1].content.split("判断材料:\n")[1]).services.map((row:any)=>row.serviceId);
-  if(!body.response_format.json_schema.schema.properties.services){recoveryTargets=ids;return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({daily:overview})}}]});}
+  if(!body.response_format.json_schema.schema.properties.services){const material=JSON.parse(body.messages[1].content.split('判断材料:\n')[1]);assert.ok(material.knowledge.port);assert.ok(material.services.every((row:any)=>row.input.weather));recoveryTargets=ids;return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({daily:overview})}}]});}
   return Response.json({choices:[{finish_reason:ids.length>1?"length":"stop",message:{content:JSON.stringify({services:ids.map((service_id:string)=>({service_id,...leg})),daily:overview})}}]});
  },clock());
  assert.deepEqual(recoveryTargets,["a","b"]);
+ assert.ok(results.every(row=>row.daily?.port_prediction==='元町'));
  assert.ok(results.every(row=>row.aiStatus==="generated"&&row.daily?.evaluation_grade==='A'));
 });
 
@@ -73,16 +83,17 @@ test("daily persistence hides running/future generations and retains previous su
 test('compact output schema decodes all target IDs and prose without changing public assessment fields',async()=>{
  const results=await assessBatchWithProviderFallback([{serviceId:'original',input:{},ml:{},dailyDate:date}],{groqApiKey:'offline'},async(_url,init)=>{
   const body=JSON.parse(String(init?.body));assert.ok(body.response_format.json_schema.schema.properties.services.items.properties.id);
-  return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({services:[{id:'original',g:'A',a:leg.assessment,p:[],n:[],o:'岡田',c:1,r:'波の予報を考慮'}],daily:overview})}}]});
+  return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({services:[{id:'original',g:'A',q:3,h:['AI判断'],a:leg.assessment,p:[],n:[],o:'岡田',c:1,r:'波の予報を考慮'}],daily:overview})}}]});
  },clock());
  assert.equal(results[0]!.ai!.evaluation_grade,'A');assert.equal(results[0]!.ai!.assessment,leg.assessment);
+ assert.equal(results[0]!.ai!.confidence_level,3);assert.deepEqual(results[0]!.ai!.confidence_reasons,['AI判断']);
  assert.deepEqual(results[0]!.aiAudit.attempts[0]!.returnedIds,['original']);
  assert.ok(results[0]!.aiAudit.attempts[0]!.responseText?.includes('original'));
 });
 
 test('provider schema-rejected JSON is recovered only after full local validation',async()=>{
  for(const wrongId of [false,true]){
-  const results=await assessBatchWithProviderFallback([{serviceId:'a',input:{},ml:{},dailyDate:date}],{groqApiKey:'offline'},async()=>Response.json({error:{code:'json_validate_failed',failed_generation:JSON.stringify({services:[{id:wrongId?'wrong':'a',g:'A',a:leg.assessment,p:'風は基準未満',n:[],o:'岡田',c:1,r:'波の予報を考慮'}],daily:overview})}},{status:400}),clock());
+  const results=await assessBatchWithProviderFallback([{serviceId:'a',input:{},ml:{},dailyDate:date}],{groqApiKey:'offline'},async()=>Response.json({error:{code:'json_validate_failed',failed_generation:JSON.stringify({services:[{id:wrongId?'wrong':'a',g:'A',q:3,h:['AI判断'],a:leg.assessment,p:'風は基準未満',n:[],o:'岡田',c:1,r:'波の予報を考慮'}],daily:overview})}},{status:400}),clock());
   assert.equal(results[0]!.aiStatus,wrongId?'unavailable':'generated');
   if(!wrongId){assert.deepEqual(results[0]!.ai!.positive_factors,['風は基準未満']);assert.equal(results[0]!.aiAudit.attempts[0]!.status,400);}
  }
@@ -91,13 +102,21 @@ test('provider schema-rejected JSON is recovered only after full local validatio
 test("served UI uses daily grade, renders escaped overview before services and opens the card",async()=>{
  const script=await (await handleRequest(new Request("https://local/app.js"))).text();
  const container={innerHTML:""};const button:any={dataset:{date},setAttribute(){},closest:()=>({classList:{toggle:()=>true}})};
- const context=vm.createContext({Intl,Date,Set,document:{querySelector:(s:string)=>s==="#days"?container:{hidden:false},querySelectorAll:(s:string)=>s==="[data-day]"?[button]:[]}});
+ const context=vm.createContext({Intl,Date,Set,setInterval:()=>0,document:{addEventListener(){},querySelector:(s:string)=>s==="#days"?container:{hidden:false},querySelectorAll:(s:string)=>s==="[data-day]"?[button]:[]}});
  // Run only application definitions, before its network initialization.
  vm.runInContext(script.slice(0,script.indexOf("qa('[data-close]')")),context);
  vm.runInContext(`days=[{date:${JSON.stringify(date)},services:[{service_id:'a',evaluation_grade:'D'}],daily_forecast:{action_guidance:{grade:'A'},assessment:${JSON.stringify({...overview,assessment:overview.assessment+"<script>"})}}}];render()`,context);
+ assert.equal(vm.runInContext('dayPortLabel(days[0])',context),'元町港');
+ assert.match(container.innerHTML,/出帆港予測/);
  assert.match(container.innerHTML,/data-grade="A"/);assert.match(container.innerHTML,/&lt;script&gt;/);
  assert.ok(container.innerHTML.indexOf('class="daily-overview grade-gauge"')<container.innerHTML.indexOf('data-service="a"'));
  assert.equal(typeof button.onclick,"function");button.onclick();
  vm.runInContext(`days[0].daily_forecast={ai_status:'unavailable',assessment:null};render()`,context);
  assert.match(container.innerHTML,/data-grade="pending"/);assert.match(container.innerHTML,/前回予測/);assert.doesNotMatch(container.innerHTML,/grade-segment active" data-grade="C"|慎重側/);
+ // A grouped date retains its services for notification selection, but only group cards appear in the day list.
+ vm.runInContext(`days[0].group_forecasts=[{group_id:'group-a',label:'午前・東京航路',ship_type:'jet',member_ids:['a'],action_guidance:{grade:'C'}}];render()`,context);
+ assert.match(container.innerHTML,/data-group="group-a"/);
+ assert.doesNotMatch(container.innerHTML,/data-service="a"/);
+ vm.runInContext(`days[0].group_forecasts=[];render()`,context);
+ assert.match(container.innerHTML,/data-service="a"/);
 });

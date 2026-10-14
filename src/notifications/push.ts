@@ -87,6 +87,36 @@ async function vapidHeaders(endpoint: string, publicKey: string, privateKey: str
   return { TTL: "300", Authorization: `vapid t=${header}.${payload}.${base64url(signature)}, k=${publicKey}` };
 }
 
+/** RFC 8291 / RFC 8188 single-record aes128gcm Web Push payload. */
+export async function encryptPushPayload(subscription: PushSubscriptionInput, payload: unknown): Promise<Uint8Array> {
+  const receiver = decode64url(subscription.keys.p256dh);
+  const auth = decode64url(subscription.keys.auth);
+  const sender = await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+  const senderPublic = new Uint8Array(await crypto.subtle.exportKey('raw',sender.publicKey));
+  const receiverKey = await crypto.subtle.importKey('raw',receiver,{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({name:'ECDH',public:receiverKey},sender.privateKey,256));
+  const concat = (...parts: Uint8Array[]) => {const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let offset=0;for(const p of parts){out.set(p,offset);offset+=p.length;}return out;};
+  const hkdf = async (secret:Uint8Array,salt:Uint8Array,info:Uint8Array,length:number) => {
+    const key=await crypto.subtle.importKey('raw',secret as BufferSource,'HKDF',false,['deriveBits']);
+    return new Uint8Array(await crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:salt as BufferSource,info:info as BufferSource},key,length*8));
+  };
+  const ikm=await hkdf(shared,auth,concat(encoder.encode('WebPush: info\0'),receiver,senderPublic),32);
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const cek=await hkdf(ikm,salt,encoder.encode('Content-Encoding: aes128gcm\0'),16);
+  const nonce=await hkdf(ikm,salt,encoder.encode('Content-Encoding: nonce\0'),12);
+  const plaintext=concat(encoder.encode(JSON.stringify(payload)),new Uint8Array([2]));
+  if (plaintext.length+16>4096) throw Error('Push payload is too large');
+  const key=await crypto.subtle.importKey('raw',cek,'AES-GCM',false,['encrypt']);
+  const encrypted=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce},key,plaintext));
+  const header=new Uint8Array(21);header.set(salt);new DataView(header.buffer).setUint32(16,4096);header[20]=senderPublic.length;
+  return concat(header,senderPublic,encrypted);
+}
+export async function sendPush(env:PushEnv,subscription:PushSubscriptionInput,payload:unknown,fetchFn:typeof fetch=fetch):Promise<Response> {
+  const headers=new Headers(await vapidHeaders(subscription.endpoint,env.VAPID_PUBLIC_KEY!,env.VAPID_PRIVATE_KEY!,env.VAPID_SUBJECT!));
+  headers.set('Content-Encoding','aes128gcm');headers.set('Content-Type','application/octet-stream');
+  return fetchFn(subscription.endpoint,{method:'POST',headers,body:await encryptPushPayload(subscription,payload) as BodyInit,signal:AbortSignal.timeout(15_000)});
+}
+
 interface SubscriberRow { id: string; endpoint: string; route_group: string; probability_threshold: number | null; change_threshold: number | null; notify_risk_transition: number; notify_port_change: number }
 
 export function notificationEventKeys(current: number, previous: number | null, currentPort: string | null, previousPort: string | null, preferences: {
@@ -106,15 +136,15 @@ export async function notifyPredictionChanges(env: PushEnv, service: ServiceInpu
   if (current === null) return 0;
   const previous = await env.DB.prepare(`SELECT
     (SELECT AVG(operation_probability) * 100 FROM ml_predictions m WHERE m.forecast_run_id = a.forecast_run_id AND m.service_id = a.service_id) value,
-    COALESCE(a.port_prediction,(SELECT json_extract(g.assessment_json,'$.port_prediction') FROM group_forecasts g
-      WHERE g.forecast_run_id=a.forecast_run_id AND g.ai_status='generated'
-        AND EXISTS(SELECT 1 FROM json_each(g.member_ids_json) WHERE value=a.service_id) LIMIT 1)) AS port_prediction
+    (SELECT json_extract(d.assessment_json,'$.port_prediction') FROM daily_forecasts d
+      WHERE d.forecast_run_id=a.forecast_run_id AND d.service_date=(SELECT service_date FROM services WHERE id=a.service_id) AND d.ai_status='generated') AS port_prediction
     FROM ai_predictions a JOIN forecast_runs r ON r.id=a.forecast_run_id
     WHERE a.service_id = ? AND r.status IN ('completed','partial')
       AND (r.publish_at IS NULL OR r.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     ORDER BY a.created_at DESC LIMIT 1 OFFSET 1`).bind(service.serviceId).first<{ value: number | null; port_prediction: string | null }>();
   const subscribers = await env.DB.prepare(`SELECT s.id, s.endpoint, p.route_group, p.probability_threshold, p.change_threshold,
-    p.notify_risk_transition, p.notify_port_change FROM push_subscriptions s JOIN user_notification_preferences p ON p.subscription_id=s.id`).all<SubscriberRow>();
+    p.notify_risk_transition, p.notify_port_change FROM push_subscriptions s JOIN user_notification_preferences p ON p.subscription_id=s.id
+    WHERE NOT EXISTS(SELECT 1 FROM flight_notification_settings f WHERE f.subscription_id=s.id)`).all<SubscriberRow>();
   let sent = 0;
   for (const subscriber of subscribers.results) {
     if (!routeMatches(subscriber.route_group, service.counterpartTerminal)) continue;
@@ -145,7 +175,8 @@ export async function notifyPredictionChanges(env: PushEnv, service: ServiceInpu
 export async function notifyOfficialStatusChanges(env:PushEnv,fetchFn:typeof fetch=fetch):Promise<number>{
  if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY||!env.VAPID_SUBJECT)return 0;
  const subscribers=await env.DB.prepare(`SELECT s.id,s.endpoint,p.route_group FROM push_subscriptions s
-   JOIN user_notification_preferences p ON p.subscription_id=s.id WHERE p.notify_official_update=1`).all<{id:string;endpoint:string;route_group:string}>();
+   JOIN user_notification_preferences p ON p.subscription_id=s.id WHERE p.notify_official_update=1
+   AND NOT EXISTS(SELECT 1 FROM flight_notification_settings f WHERE f.subscription_id=s.id)`).all<{id:string;endpoint:string;route_group:string}>();
  if(!subscribers.results.length)return 0;
  const rows=await env.DB.prepare(`SELECT s.id,s.counterpart_terminal,o.status,o.port FROM services s
    JOIN official_service_statuses o ON o.service_id=s.id WHERE s.schedule_active=1

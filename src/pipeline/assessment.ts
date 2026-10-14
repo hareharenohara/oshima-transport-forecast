@@ -8,6 +8,7 @@ import { groupForecastServices } from "./forecast-groups.js";
 import { GROQ_MODELS, GROQ_PROMPT_VERSION } from "../groq/client.js";
 import type { RateClock } from "../groq/rate-limit.js";
 import { buildGroupJudgmentMaterial } from "./group-judgment.js";
+import { buildPortMaterial } from "./port-material.js";
 
 const MODEL_BUNDLE: EnsembleModelBundle = modelBundleJson as EnsembleModelBundle;
 
@@ -38,8 +39,10 @@ export async function assessServicesBatch(services: ServiceInput[], credentials:
       aggregateJudgment:buildGroupJudgmentMaterial(group,members,sources!)},ml:prepared.find(item=>item.service.serviceId===group.members[0]!.serviceId)!.ml};
   });
   const items = [...individual.map(({ service, input, ml }) => ({ serviceId: service.serviceId, input, ml, dailyDate: service.scheduledDepartureJst.slice(0,10) })), ...groupItems.map(item=>({...item,dailyDate:groups.find(group=>group.id===item.serviceId)!.date}))];
+  const portByDate = new Map([...new Set(items.map(item=>item.dailyDate))].map(date=>[date,buildPortMaterial(date,prepared.filter(item=>item.service.scheduledDepartureJst.slice(0,10)===date).map(item=>item.service),sources!)]));
+  const dailyItems = items.map(item=>({...item,input:{...(item.input as object),portMaterial:portByDate.get(item.dailyDate)}}));
   const results = items.length
-    ? await assessBatchWithProviderFallback(items, credentials, fetchFn, clock)
+    ? await assessBatchWithProviderFallback(dailyItems, credentials, fetchFn, clock)
     : [];
   const individualResults = new Map(individual.map((item, index) => [item.service.serviceId, results[index]!]));
   const grouped = groups.map((group, index) => ({ group, result: results[individual.length + index]! }));

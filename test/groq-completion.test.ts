@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {assessBatchWithProviderFallback} from "../src/ai/provider.js";
 import {pacedGroqFetch} from "../src/groq/rate-limit.js";
-const assessment={evaluation_grade:"A",assessment:"風速と波高は基準未満ですが、予報モデルの差と今後の変化に注意が必要です。",positive_factors:["風速・波高が基準未満","モデル一致"],negative_factors:[],port_prediction:"元町",port_confidence_level:1,port_reasons:[]};
+const assessment={evaluation_grade:"A",confidence_level:3,confidence_reasons:["AI判断"],assessment:"風速と波高は基準未満ですが、予報モデルの差と今後の変化に注意が必要です。",positive_factors:["風速・波高が基準未満","モデル一致"],negative_factors:[],port_prediction:"元町",port_confidence_level:1,port_reasons:[]};
 function clock(){let time=0;return{now:()=>time,sleep:async(ms:number)=>{time+=ms;}};}
 
 test("truncated valid JSON is split and regenerated, preserving all target IDs and detailed text",async()=>{

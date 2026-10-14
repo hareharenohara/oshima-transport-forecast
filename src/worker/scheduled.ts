@@ -1,3 +1,4 @@
+import { confidenceLevel } from "../pipeline/confidence-scale.js";
 import { assessServicesBatch } from "../pipeline/assessment.js";
 import { fetchMultiModelSources } from "../forecast/multi-model.js";
 import { buildServiceForecastSeries } from "../forecast/service-series.js";
@@ -6,6 +7,7 @@ import { OfficialTimetableProvider } from "../schedule/official-timetable.js";
 import { ensureForecastSchedule, syncScheduleResilient, type ScheduleSyncReport } from "../schedule/recovery.js";
 import { acquireRun, claimDuePushRuns, finishRun, logRun, readOfficialPredictionStatuses, readPreviousPredictionContexts, readGroupForecasts, saveDailyAssessment, readRunPushAssessments, saveAssessment, saveGroupAssessment, saveForecastSeries, saveOfficialStatuses, upcomingServices } from "../storage/d1.js";
 import { notifyPredictionChanges, notifyOfficialStatusChanges } from "../notifications/push.js";
+import { notifyWatchedServices } from "../notifications/watched-services.js";
 import { dueForecastHorizons, selectDueForecastServices } from "./update-policy.js";
 
 export interface ScheduledEnv { DB: D1Database; GROQ_API_KEY?: string; GEMINI_API_KEY?: string; VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
@@ -47,6 +49,9 @@ export async function publishDueForecasts(env: ScheduledEnv, fetchFn: typeof fet
       console.error(JSON.stringify({ event: "forecast_publication_failed", runId, message: error instanceof Error ? error.message : String(error) }));
     }
   }
+  // Poll published views on every publication tick, including delivery retries.
+  try { await notifyWatchedServices(env,fetchFn); }
+  catch (error) { console.error(JSON.stringify({event:'watched_push_failed',message:String(error)})); }
   return due.length;
 }
 
@@ -94,7 +99,7 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
       const official = await fetchOfficialStatuses(fetchFn);
       const saved = await saveOfficialStatuses(env.DB, official, new Date().toISOString(), OFFICIAL_STATUS_URL);
       await logRun(env.DB, run.id, "info", "official_status_synced", undefined, `${saved} services`);
-      try{await notifyOfficialStatusChanges(env,fetchFn);}catch(error){await logRun(env.DB,run.id,'warn','official_push_unavailable',undefined,String(error));}
+      try{await notifyOfficialStatusChanges(env,fetchFn);await notifyWatchedServices(env,fetchFn);}catch(error){await logRun(env.DB,run.id,'warn','official_push_unavailable',undefined,String(error));}
     } catch (error) {
       await logRun(env.DB, run.id, "warn", "official_status_unavailable", undefined, error instanceof Error ? error.message : String(error));
     }
@@ -114,8 +119,8 @@ export async function runScheduled(env: ScheduledEnv, scheduledTime: number, fet
       readGroupForecasts(env.DB, new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Tokyo"}).format(publishAt))
     ]);
     const previousGroups = new Map(publishedGroups.filter(group=>group.assessment&&group.action_guidance.grade).map(group=>[group.group_id, {
-      evaluationGrade:group.action_guidance.grade, confidenceLevel:group.assessment!.confidence_level,
-      portPrediction:group.assessment!.port_prediction, createdAt:String(group.published_at)
+      evaluationGrade:group.action_guidance.grade, confidenceLevel:confidenceLevel(group.assessment!.confidence_level,group.assessment!),
+      portPrediction:null, createdAt:String(group.published_at)
     }]));
     const batch = await assessServicesBatch(services, { groqApiKey: env.GROQ_API_KEY, geminiApiKey: env.GEMINI_API_KEY }, fetchFn, sources, previous, publishAt, undefined, previousGroups);
     const audit = batch.assessed[0]?.result.aiAudit;

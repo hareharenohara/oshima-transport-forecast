@@ -97,3 +97,30 @@ test("group persistence returns only a complete latest published date generation
   assert.deepEqual(latest[0]!.member_ids,groups[0]!.members.map(s=>s.serviceId));
  }finally{sqlite.close();}
 });
+
+test('group latest-date selection preserves failed fallback, changed membership and publication isolation', async () => {
+ const sqlite=new DatabaseSync(':memory:');
+ try {
+  for(const name of readdirSync('migrations').filter(name=>name.endsWith('.sql')).sort())sqlite.exec(readFileSync(`migrations/${name}`,'utf8'));
+  const db={prepare(sql:string){let args:unknown[]=[];return{bind(...values:unknown[]){args=values;return this;},async all(){return{results:sqlite.prepare(sql).all(...args as [])};}};}} as unknown as D1Database;
+  sqlite.exec(`INSERT INTO forecast_runs(id,run_slot,run_at,status,created_at,publish_at) VALUES
+   ('old','2000-01-01','2000-01-01','completed','old',NULL),
+   ('new','2000-01-02','2000-01-02','partial','new',NULL),
+   ('future','2000-01-03','2000-01-03','completed','future','2999-01-01'),
+   ('running','2000-01-04','2000-01-04','running','running',NULL);`);
+  const insert=sqlite.prepare(`INSERT INTO group_forecasts(forecast_run_id,group_id,service_date,horizon_days,label,ship_type,member_ids_json,assessment_json,ai_status,model,prompt_version,created_at) VALUES(?,?,'2026-10-12',2,?,'jet',?,?,?,'test','test',?)`);
+  for(const id of ['same','changed','removed'])insert.run('old',id,id,'["a"]',JSON.stringify({evaluation_grade:'A'}),'generated','old');
+  insert.run('new','same','same','["a"]',null,'unavailable','new');
+  insert.run('new','changed','changed','["b"]',null,'unavailable','new');
+  insert.run('future','same','same','["a"]',JSON.stringify({evaluation_grade:'D'}),'generated','future');
+  insert.run('running','same','same','["a"]',JSON.stringify({evaluation_grade:'D'}),'generated','running');
+  const rows=await readGroupForecasts(db,'2026-10-12',1);
+  assert.deepEqual(rows.map(r=>r.group_id),['changed','same']);
+  assert.equal(rows[0]!.assessment,null);
+  assert.deepEqual(rows[0]!.member_ids,['b']);
+  assert.equal(rows[1]!.assessment!.evaluation_grade,'A');
+  assert.equal(rows[1]!.latest_ai_status,'unavailable');
+  assert.equal(rows[1]!.stale,true);
+  assert.equal((await readGroupForecasts(db,'2026-10-13',1)).length,0);
+ } finally {sqlite.close();}
+});

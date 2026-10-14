@@ -13,4 +13,5 @@ artifacts/model_training_v1_127/threshold_analysis.csv
 artifacts/offline_model_benchmark/
 artifacts/model_v2_offline/
 .wrangler/
+.local/
 

@@ -20,9 +20,10 @@ function database(){
  return{sqlite,db,date};
 }
 
-test('group ports reach both current and previous notification comparisons',async()=>{
- const {sqlite,db}=database();
+test('daily ports reach both current and previous notification comparisons',async()=>{
+ const {sqlite,db,date}=database();
  try{
+ for(const [run,port] of [['old','元町'],['new','岡田']] as const)sqlite.prepare("INSERT INTO daily_forecasts(forecast_run_id,service_date,assessment_json,ai_status,created_at) VALUES(?,?,?,'generated',?)").run(run,date,JSON.stringify({port_prediction:port}),run);
   const rows=await readRunPushAssessments(db,'new');assert.equal(rows[0]!.result.ai?.port_prediction,'岡田');
   let previousPort:unknown;
   const observer={prepare(sql:string){const statement=db.prepare(sql);return{...statement,bind(...args:unknown[]){const bound=statement.bind(...args);return{...bound,async first(){const result=await bound.first<any>();previousPort=result?.port_prediction;return result;}};}};}} as unknown as D1Database;

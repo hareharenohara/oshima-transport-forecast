@@ -4,7 +4,7 @@ import { compareModels } from "../src/forecast/model-comparison.js";
 import { assessBatchWithFallback, assessWithFallback, validateAssessment, validateForecastSummary } from "../src/gemini/client.js";
 
 const summary = (extra: Record<string, unknown> = {}) => ({ risk_level: "low", model_agreement: "high", key_signals: ["低リスク"], rough_conditions: [], peak_conditions: [], trends: [], previous_changes: [], missing_data: [], numerical_summary: "平均1%", ...extra });
-const assessment = (extra: Record<string, unknown> = {}) => ({ evaluation_grade: "A", confidence_level: 4, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "不明", port_confidence_level: 1, port_reasons: ["港判断材料不足"], summary: "運航可能性が高い", ...extra });
+const assessment = (extra: Record<string, unknown> = {}) => ({ evaluation_grade: "A", confidence_level: 3, assessment: "運航見込み", positive_factors: ["低リスク"], negative_factors: [], confidence_reasons: ["モデル一致"], official_criteria_status: [], port_prediction: "不明", port_confidence_level: 1, port_reasons: ["港判断材料不足"], summary: "運航可能性が高い", ...extra });
 const candidate = (value: unknown) => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(value) }] } }] });
 
 test("compares forecast models", () => { const result = compareModels([{ model: "MSM", value: 10 }, { model: "ECMWF", value: 12 }, { model: "GFS", value: 11 }], 2, 5); assert.equal(result.mean, 11); assert.equal(result.agreement, "high"); });
@@ -39,4 +39,10 @@ test("uses 3.5 Flash-Lite as final fallback", async () => {
   let summarized = false; const result = await assessBatchWithFallback([{ serviceId: "a", input: {}, ml: {} }], "x", async (input) => { const model = String(input).match(/models\/([^:]+)/)?.[1] ?? ""; if (!summarized && model === "gemini-3.5-flash-lite") { summarized = true; return candidate({ services: [{ service_id: "a", ...summary() }] }); } return model === "gemini-3.5-flash-lite" ? candidate({ services: [{ service_id: "a", ...assessment() }] }) : new Response("capacity", { status: 503 }); });
   assert.equal(result[0]?.geminiModels.final, "gemini-3.5-flash-lite");
 });
-test("accepts ordinal boundaries and rejects invalid values", () => { assert.equal(validateAssessment(assessment({ evaluation_grade: "D", confidence_level: 1, port_confidence_level: 5 })).evaluation_grade, "D"); assert.throws(() => validateAssessment(assessment({ evaluation_grade: "E" })), /evaluation_grade/); assert.throws(() => validateAssessment(assessment({ confidence_level: 6 })), /confidence_level/); });
+test("accepts ordinal boundaries and rejects invalid values", () => { assert.equal(validateAssessment(assessment({ evaluation_grade: "D", confidence_level: 1, port_confidence_level: 3 })).evaluation_grade, "D"); assert.throws(() => validateAssessment(assessment({ evaluation_grade: "E" })), /evaluation_grade/); assert.throws(() => validateAssessment(assessment({ confidence_level: 6 })), /confidence_level/); });
+
+test("three-level confidence accepts medium and rejects levels outside the new schema",()=>{
+ assert.equal(validateAssessment(assessment({confidence_level:2})).confidence_scale,"three-level-v1");
+ assert.throws(()=>validateAssessment(assessment({confidence_level:4})),/confidence_level/);
+ assert.throws(()=>validateAssessment(assessment({port_confidence_level:4})),/port_confidence_level/);
+});

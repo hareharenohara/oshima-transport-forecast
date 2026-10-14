@@ -106,16 +106,10 @@ export async function assessBatchWithProviderFallback<T>(items: Array<{ serviceI
     if (credentials.groqApiKey) {
       try {
         const assessed=await assessGroqBatch(group, credentials.groqApiKey, instrumented,maxCompletionTokens,dailyDate);
-        if(dailyDate && judgmentRetry===0 && assessed[0]?.dailyError?.includes("Assessment length limit:")) {
-          pending.unshift({group:group.map(item=>({...item,input:{...(item.input as object),responseCorrection:assessed[0]!.dailyError}})),maxCompletionTokens,judgmentRetry:1,dailyDate});
-          continue;
-        }
         if(dailyDate) dailyResults.set(dailyDate,{daily:assessed[0]?.daily ?? null,dailyError:assessed[0]?.dailyError});
         for(let index=0;index<assessed.length;index++){
           const result=assessed[index]!,item=group[index]!;
-          if(result.aiStatus==='unavailable'&&result.error&&judgmentRetry===0){
-            pending.push({group:[{...item,input:{...(item.input as object),responseCorrection:result.error}}],maxCompletionTokens:1600,judgmentRetry:1,dailyDate:undefined});
-          }else{results.push(result);completedIds.push(item.serviceId);}
+          results.push(result);completedIds.push(item.serviceId);
         }
         continue;
       } catch (error) {
@@ -157,7 +151,7 @@ export async function assessBatchWithProviderFallback<T>(items: Array<{ serviceI
     }
     if(dailyError)dailyResults.set(date,{daily:null,dailyError});
   }
-  return attachAudit(items.map(item=>({...byId.get(item.serviceId)!, action_guidance: actionGuidance(byId.get(item.serviceId)?.ai?.evaluation_grade, byId.get(item.serviceId)?.promptVersion), ...(item.dailyDate ? {dailyDate:item.dailyDate,...(dailyResults.get(item.dailyDate) ?? {daily:null,dailyError:"日全体の評価を取得できませんでした。"})} : {})})), attempts, errors.length ? errors.join(" | ") : undefined);
+  return attachAudit(items.map(item=>({...byId.get(item.serviceId)!, action_guidance: actionGuidance(byId.get(item.serviceId)?.ai?.evaluation_grade, byId.get(item.serviceId)?.promptVersion, byId.get(item.serviceId)?.ai?.grade_scale), ...(item.dailyDate ? {dailyDate:item.dailyDate,...(dailyResults.get(item.dailyDate) ?? {daily:null,dailyError:"日全体の評価を取得できませんでした。"})} : {})})), attempts, errors.length ? errors.join(" | ") : undefined);
 }
 
 export async function assessSingleWithProviderFallback<T>(input: unknown, ml: T, credentials: AiCredentials, fetchFn: typeof fetch = fetch): Promise<ProviderAssessmentResult<T>> {
